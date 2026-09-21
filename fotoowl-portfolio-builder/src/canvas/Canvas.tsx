@@ -1,6 +1,12 @@
 import { Puck } from '@puckeditor/core';
 import type { Data } from '@puckeditor/core';
-import { ArrowLeftRight, Layers } from 'lucide-react';
+import {
+  ArrowDown,
+  ArrowLeftRight,
+  ArrowUp,
+  Layers,
+  Trash2,
+} from 'lucide-react';
 import {
   selectAboutSection,
   selectPuckData,
@@ -13,9 +19,15 @@ import { CanvasFrame } from './CanvasFrame';
 function BlueprintInspector() {
   const blueprint = useEditorStore((s) => s.blueprint);
   const selectedNodeId = useEditorStore((s) => s.selectedNodeId);
+  const lastPatchError = useEditorStore((s) => s.lastPatchError);
   const flipAboutLayout = useEditorStore((s) => s.flipAboutLayout);
+  const moveSelectedSection = useEditorStore((s) => s.moveSelectedSection);
+  const deleteSelectedSection = useEditorStore((s) => s.deleteSelectedSection);
   const about = selectAboutSection(blueprint);
   const selected = blueprint.sections.find((s) => s.id === selectedNodeId);
+  const selectedIndex = selected
+    ? blueprint.sections.findIndex((s) => s.id === selected.id)
+    : -1;
 
   return (
     <aside className="fo-inspector" aria-label="Blueprint inspector">
@@ -37,10 +49,43 @@ function BlueprintInspector() {
       </div>
 
       <div className="fo-inspector__block">
-        <p className="fo-inspector__label">About layout (POC)</p>
-        <p className="fo-inspector__value mono">
-          {about?.component ?? '—'}
-        </p>
+        <p className="fo-inspector__label">Patch actions</p>
+        <div className="fo-inspector__actions">
+          <button
+            type="button"
+            className="fo-inspector__btn fo-inspector__btn--ghost"
+            onClick={() => moveSelectedSection('up')}
+            disabled={!selected || selectedIndex <= 0}
+            title="Reorder up via patch"
+          >
+            <ArrowUp size={14} aria-hidden />
+            Up
+          </button>
+          <button
+            type="button"
+            className="fo-inspector__btn fo-inspector__btn--ghost"
+            onClick={() => moveSelectedSection('down')}
+            disabled={
+              !selected ||
+              selectedIndex < 0 ||
+              selectedIndex >= blueprint.sections.length - 1
+            }
+            title="Reorder down via patch"
+          >
+            <ArrowDown size={14} aria-hidden />
+            Down
+          </button>
+          <button
+            type="button"
+            className="fo-inspector__btn fo-inspector__btn--danger"
+            onClick={deleteSelectedSection}
+            disabled={!selected}
+            title="Delete via patch"
+          >
+            <Trash2 size={14} aria-hidden />
+            Delete
+          </button>
+        </div>
         <button
           type="button"
           className="fo-inspector__btn"
@@ -48,12 +93,17 @@ function BlueprintInspector() {
           disabled={!about || !isAboutComponentId(about.component)}
         >
           <ArrowLeftRight size={14} aria-hidden />
-          Flip About image side
+          Flip About ({about?.component ?? '—'})
         </button>
         <p className="fo-inspector__hint">
-          Updates Blueprint <code>component</code>, then remounts Puck from
-          Blueprint.
+          All actions apply validated Blueprint patches (add / update / delete /
+          move / reorder / replace).
         </p>
+        {lastPatchError ? (
+          <p className="fo-inspector__error" role="alert">
+            {lastPatchError}
+          </p>
+        ) : null}
       </div>
 
       <div className="fo-inspector__block fo-inspector__block--grow">
@@ -82,10 +132,7 @@ function selectedIdFromPuckData(
   data: Data,
   itemSelector: { index: number; zone?: string } | null | undefined,
 ): string | null {
-  if (!itemSelector || itemSelector.zone) {
-    // Nested zones not used in POC — only top-level content
-    if (!itemSelector) return null;
-  }
+  if (!itemSelector) return null;
   const item = data.content[itemSelector.index];
   const id = item?.props.id;
   return typeof id === 'string' ? id : null;

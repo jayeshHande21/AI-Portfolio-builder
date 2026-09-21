@@ -1,16 +1,21 @@
 import { create } from 'zustand';
 import type { Data } from '@puckeditor/core';
-import type { PortfolioBlueprint, SectionComponentId } from '../../blueprint';
+import type {
+  BlueprintPatch,
+  PortfolioBlueprint,
+  SectionComponentId,
+} from '../../blueprint';
 import {
+  applyPatch,
   findSection,
-  updateSectionComponent,
+  updateNodePatch,
   validateBlueprint,
 } from '../../blueprint';
 import {
   blueprintToPuckData,
   puckDataToBlueprint,
 } from '../../canvas/puck/adapter';
-import { isAboutComponentId } from '../../components/registry';
+import { createFlipAboutLayoutPatch } from '../commands';
 import {
   createPortfolioFromTheme,
   theme01,
@@ -28,17 +33,25 @@ interface EditorState {
   editorEpoch: number;
   /** Blocks Puck onChange echoes while Blueprint-driven remounts settle. */
   syncLocked: boolean;
+  /** Last patch error (editor UI can surface this). */
+  lastPatchError: string | null;
 
   loadTheme: (theme?: PortfolioBlueprint) => void;
   /** Sync from Puck onChange — does not remount. */
   syncFromPuck: (data: Data) => void;
   selectNode: (nodeId: string | null) => void;
-  /** POC: flip About between image_left and image_right via Blueprint. */
+  /**
+   * Apply a validated Blueprint patch (manual + AI share this path).
+   * Remounts Puck when structure/content changes via patch.
+   */
+  applyBlueprintPatch: (patch: BlueprintPatch) => boolean;
   flipAboutLayout: () => void;
   setSectionComponent: (
     sectionId: string,
     component: SectionComponentId,
   ) => void;
+  moveSelectedSection: (direction: 'up' | 'down') => void;
+  deleteSelectedSection: () => void;
 }
 
 function loadInitialBlueprint(): PortfolioBlueprint {
@@ -48,7 +61,6 @@ function loadInitialBlueprint(): PortfolioBlueprint {
 
 function withSyncLock(set: (partial: Partial<EditorState>) => void) {
   set({ syncLocked: true });
-  // Ignore trailing onChange from the Puck instance being unmounted.
   window.setTimeout(() => set({ syncLocked: false }), 100);
 }
 
@@ -57,6 +69,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   selectedNodeId: null,
   editorEpoch: 0,
   syncLocked: false,
+  lastPatchError: null,
 
   loadTheme: (theme = theme01) => {
     const draft = validateBlueprint(createPortfolioFromTheme(theme));
@@ -65,6 +78,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       blueprint: draft,
       selectedNodeId: null,
       editorEpoch: get().editorEpoch + 1,
+      lastPatchError: null,
     });
   },
 
@@ -74,36 +88,79 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }
     const next = puckDataToBlueprint(data, get().blueprint);
     const parsed = validateBlueprint(next);
-    set({ blueprint: parsed });
+    set({ blueprint: parsed, lastPatchError: null });
   },
 
   selectNode: (nodeId) => set({ selectedNodeId: nodeId }),
 
-  setSectionComponent: (sectionId, component) => {
-    const next = validateBlueprint(
-      updateSectionComponent(get().blueprint, sectionId, component),
-    );
+  applyBlueprintPatch: (patch) => {
+    const result = applyPatch(get().blueprint, patch);
+    if (!result.ok) {
+      set({ lastPatchError: result.error });
+      return false;
+    }
+
     withSyncLock(set);
     set({
-      blueprint: next,
+      blueprint: result.blueprint,
       editorEpoch: get().editorEpoch + 1,
+      lastPatchError: null,
     });
+    return true;
+  },
+
+  setSectionComponent: (sectionId, component) => {
+    get().applyBlueprintPatch(updateNodePatch(sectionId, { component }));
   },
 
   flipAboutLayout: () => {
-    const { blueprint } = get();
-    const about = blueprint.sections.find((s) =>
-      isAboutComponentId(s.component),
-    );
-    if (!about || !isAboutComponentId(about.component)) {
+    const patch = createFlipAboutLayoutPatch(get().blueprint);
+    if (!patch) return;
+    const targetId =
+      patch.op === 'update' ? patch.targetId : null;
+    if (get().applyBlueprintPatch(patch) && targetId) {
+      get().selectNode(targetId);
+    }
+  },
+
+  moveSelectedSection: (direction) => {
+    const { blueprint, selectedNodeId } = get();
+    if (!selectedNodeId) {
+      set({ lastPatchError: 'No section selected' });
       return;
     }
-    const nextComponent: SectionComponentId =
-      about.component === 'about.image_left'
-        ? 'about.image_right'
-        : 'about.image_left';
-    get().setSectionComponent(about.id, nextComponent);
-    get().selectNode(about.id);
+    const ids = blueprint.sections.map((s) => s.id);
+    const index = ids.indexOf(selectedNodeId);
+    if (index === -1) {
+      set({ lastPatchError: `Section "${selectedNodeId}" not found` });
+      return;
+    }
+    const swapWith = direction === 'up' ? index - 1 : index + 1;
+    if (swapWith < 0 || swapWith >= ids.length) {
+      set({ lastPatchError: `Cannot move section ${direction}` });
+      return;
+    }
+    const orderedIds = [...ids];
+    const a = orderedIds[index]!;
+    const b = orderedIds[swapWith]!;
+    orderedIds[index] = b;
+    orderedIds[swapWith] = a;
+    get().applyBlueprintPatch({
+      op: 'reorder',
+      parentId: null,
+      orderedIds,
+    });
+  },
+
+  deleteSelectedSection: () => {
+    const { selectedNodeId } = get();
+    if (!selectedNodeId) {
+      set({ lastPatchError: 'No section selected' });
+      return;
+    }
+    if (get().applyBlueprintPatch({ op: 'delete', targetId: selectedNodeId })) {
+      set({ selectedNodeId: null });
+    }
   },
 }));
 
@@ -113,7 +170,7 @@ export function selectPuckData(blueprint: PortfolioBlueprint): Data {
 
 export function selectAboutSection(blueprint: PortfolioBlueprint) {
   const about = blueprint.sections.find((s) =>
-    isAboutComponentId(s.component),
+    s.component === 'about.image_left' || s.component === 'about.image_right',
   );
   return about ? findSection(blueprint, about.id) : undefined;
 }

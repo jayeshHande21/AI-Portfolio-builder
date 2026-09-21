@@ -18,10 +18,33 @@ export {
   safeParseBlueprint,
   validateBlueprint,
 } from './validator';
-export type { BlueprintPatch, PatchOp } from './patches';
+export { blueprintPatchSchema } from './patchSchema';
+export type { BlueprintPatchInput } from './patchSchema';
+export type {
+  BlueprintPatch,
+  PatchFailure,
+  PatchOp,
+  PatchResult,
+  PatchSuccess,
+} from './patches';
 export {
+  addNodePatch,
   applyPatch,
+  applyPatches,
+  deleteNodePatch,
   findSection,
+  moveNodePatch,
+  reorderSectionRelative,
+  reorderSiblingsPatch,
+  replaceNodePatch,
+  updateNodePatch,
   updateSectionComponent,
   updateSectionProps,
+  validatePatch,
 } from './patches';
+export {
+  ROOT_SECTIONS_PARENT,
+  collectNodeIds,
+  findNodeById,
+  findNodeLocation,
+} from './tree';

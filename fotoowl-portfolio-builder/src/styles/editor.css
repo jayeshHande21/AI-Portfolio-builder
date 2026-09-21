@@ -156,6 +156,39 @@ body {
   cursor: not-allowed;
 }
 
+.fo-inspector__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.fo-inspector__btn--ghost {
+  background: transparent;
+  border-color: rgba(243, 241, 236, 0.2);
+  color: var(--fo-chrome-text);
+}
+
+.fo-inspector__btn--ghost:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.fo-inspector__btn--danger {
+  background: transparent;
+  border-color: rgba(220, 80, 80, 0.45);
+  color: #f0b4b4;
+}
+
+.fo-inspector__btn--danger:hover:not(:disabled) {
+  background: rgba(220, 80, 80, 0.15);
+}
+
+.fo-inspector__error {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: #f0b4b4;
+}
+
 .fo-inspector__hint {
   margin: 0;
   font-size: 0.75rem;
