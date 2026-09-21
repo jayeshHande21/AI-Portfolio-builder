@@ -61,6 +61,8 @@ interface EditorState {
   viewportId: EditorViewportId;
   /** Section AI in-flight flag (editor runtime). */
   sectionAiLoading: boolean;
+  /** Whether the Section AI right rail is open (opened from section action bar). */
+  sectionAiOpen: boolean;
 
   /** Load a theme by registry id (clones — never mutates the theme source). */
   loadThemeById: (themeId: string) => void;
@@ -68,6 +70,8 @@ interface EditorState {
   /** Sync from Puck onChange — records history when Blueprint changes. */
   syncFromPuck: (data: Data) => void;
   selectNode: (nodeId: string | null) => void;
+  openSectionAi: (nodeId?: string | null) => void;
+  closeSectionAi: () => void;
   applyBlueprintPatch: (patch: BlueprintPatch, label?: string) => boolean;
   applyBlueprintPatches: (patches: BlueprintPatch[], label?: string) => boolean;
   /** Section AI → patches → Blueprint (same mutation path as manual edits). */
@@ -148,6 +152,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   history: createEmptyHistory(),
   viewportId: DEFAULT_VIEWPORT,
   sectionAiLoading: false,
+  sectionAiOpen: false,
 
   loadThemeById: (themeId) => {
     get().loadTheme(requireTheme(themeId));
@@ -162,6 +167,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       editorEpoch: get().editorEpoch + 1,
       lastPatchError: null,
       history: createEmptyHistory(),
+      sectionAiOpen: false,
+      sectionAiLoading: false,
     });
   },
 
@@ -180,6 +187,18 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   selectNode: (nodeId) => set({ selectedNodeId: nodeId }),
+
+  openSectionAi: (nodeId) => {
+    set({
+      sectionAiOpen: true,
+      ...(nodeId !== undefined ? { selectedNodeId: nodeId } : {}),
+      lastPatchError: null,
+    });
+  },
+
+  closeSectionAi: () => {
+    set({ sectionAiOpen: false, sectionAiLoading: false });
+  },
 
   applyBlueprintPatch: (patch, label = `Patch:${patch.op}`) => {
     const before = get().blueprint;

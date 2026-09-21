@@ -186,6 +186,33 @@ body {
   flex-shrink: 0;
 }
 
+.fo-section-ai__heading {
+  flex: 1;
+  min-width: 0;
+}
+
+.fo-section-ai__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.75rem;
+  height: 1.75rem;
+  margin: -0.2rem -0.2rem 0 0;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 0.35rem;
+  background: transparent;
+  color: var(--fo-chrome-muted);
+  cursor: pointer;
+}
+
+.fo-section-ai__close:hover {
+  border-color: rgba(243, 241, 236, 0.14);
+  background: rgba(243, 241, 236, 0.06);
+  color: var(--fo-chrome-text);
+}
+
 .fo-section-ai__eyebrow {
   margin: 0;
   font-size: 0.7rem;

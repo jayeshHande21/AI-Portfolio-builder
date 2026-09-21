@@ -12,6 +12,7 @@ import {
   toPuckViewports,
 } from './viewport';
 import { puckConfig } from './puck/config';
+import { SectionAiActionBar } from './puck/SectionAiActionBar';
 import { CanvasFrame } from './CanvasFrame';
 
 function EditorToolbar() {
@@ -88,12 +89,13 @@ function useHistoryHotkeys() {
 
 /**
  * Interactive portfolio Canvas — Blueprint → Registry → Puck Adapter → Puck.
- * Layout: toolbar + canvas | Section AI (right).
+ * Layout: toolbar + canvas | Section AI (right, opened from section action bar).
  */
 export function Canvas() {
   const blueprint = useEditorStore((s) => s.blueprint);
   const editorEpoch = useEditorStore((s) => s.editorEpoch);
   const viewportId = useEditorStore((s) => s.viewportId);
+  const sectionAiOpen = useEditorStore((s) => s.sectionAiOpen);
   const syncFromPuck = useEditorStore((s) => s.syncFromPuck);
   const selectNode = useEditorStore((s) => s.selectNode);
   const syncViewportFromWidth = useEditorStore((s) => s.syncViewportFromWidth);
@@ -119,6 +121,9 @@ export function Canvas() {
               ui={{
                 viewports: toPuckViewportUi(viewportId),
               }}
+              overrides={{
+                actionBar: SectionAiActionBar,
+              }}
               onChange={syncFromPuck}
               onPublish={syncFromPuck}
               onAction={(_action, appState) => {
@@ -133,14 +138,16 @@ export function Canvas() {
               viewports={toPuckViewports()}
             />
           </div>
-          <aside className="fo-ai-rail" aria-label="Section AI">
-            <SectionAiPanel />
-            {lastPatchError ? (
-              <p className="fo-ai-rail__error" role="alert">
-                {lastPatchError}
-              </p>
-            ) : null}
-          </aside>
+          {sectionAiOpen ? (
+            <aside className="fo-ai-rail" aria-label="Section AI">
+              <SectionAiPanel />
+              {lastPatchError ? (
+                <p className="fo-ai-rail__error" role="alert">
+                  {lastPatchError}
+                </p>
+              ) : null}
+            </aside>
+          ) : null}
         </div>
       </div>
     </CanvasFrame>

@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from 'react';
-import { Sparkles } from 'lucide-react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { Sparkles, X } from 'lucide-react';
 import { useEditorStore } from '../editor/state';
 
 type ChatMessage = {
@@ -17,23 +17,29 @@ const SUGGESTIONS = [
 
 /**
  * Section AI panel — prompt → structured patches → Blueprint.
- * Docked on the right. Requires a selected section.
+ * Opens from the section action bar (alongside copy / delete).
  */
 export function SectionAiPanel() {
   const selectedNodeId = useEditorStore((s) => s.selectedNodeId);
   const blueprint = useEditorStore((s) => s.blueprint);
   const loading = useEditorStore((s) => s.sectionAiLoading);
   const runSectionAiPrompt = useEditorStore((s) => s.runSectionAiPrompt);
+  const closeSectionAi = useEditorStore((s) => s.closeSectionAi);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const [prompt, setPrompt] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'sys',
       role: 'system',
-      text: 'Select a section in the canvas, then describe the change. Section AI returns Blueprint patches only.',
+      text: 'Describe the change for this section. Section AI returns Blueprint patches only.',
     },
   ]);
 
   const selected = blueprint.sections.find((s) => s.id === selectedNodeId);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
 
   const submit = async (value: string) => {
     const trimmed = value.trim();
@@ -67,7 +73,7 @@ export function SectionAiPanel() {
     <section className="fo-section-ai" aria-label="Section AI">
       <header className="fo-section-ai__header">
         <Sparkles size={16} aria-hidden />
-        <div>
+        <div className="fo-section-ai__heading">
           <p className="fo-section-ai__eyebrow">Section AI</p>
           <p className="fo-section-ai__target">
             {selected
@@ -75,6 +81,14 @@ export function SectionAiPanel() {
               : 'No section selected'}
           </p>
         </div>
+        <button
+          type="button"
+          className="fo-section-ai__close"
+          onClick={closeSectionAi}
+          aria-label="Close Section AI"
+        >
+          <X size={16} aria-hidden />
+        </button>
       </header>
 
       <div className="fo-section-ai__suggestions">
@@ -107,6 +121,7 @@ export function SectionAiPanel() {
           Section AI prompt
         </label>
         <textarea
+          ref={inputRef}
           id="section-ai-prompt"
           className="fo-section-ai__input"
           rows={4}
