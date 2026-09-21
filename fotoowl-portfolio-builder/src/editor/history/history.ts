@@ -104,7 +104,9 @@ export function blueprintsEqualForHistory(
 ): boolean {
   return (
     a.name === b.name &&
+    a.themeId === b.themeId &&
     JSON.stringify(a.sections) === JSON.stringify(b.sections) &&
-    JSON.stringify(a.assets) === JSON.stringify(b.assets)
+    JSON.stringify(a.assets) === JSON.stringify(b.assets) &&
+    JSON.stringify(a.tokens) === JSON.stringify(b.tokens)
   );
 }

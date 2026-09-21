@@ -2,6 +2,7 @@ export type {
   Asset,
   AssetId,
   BlueprintNode,
+  DesignTokens,
   NodeAnimation,
   NodeId,
   NodeLayout,
@@ -11,7 +12,12 @@ export type {
   ResponsiveOverrides,
   SectionComponentId,
 } from './types';
-export { assetSchema, blueprintNodeSchema, portfolioBlueprintSchema } from './schema';
+export {
+  assetSchema,
+  blueprintNodeSchema,
+  designTokensSchema,
+  portfolioBlueprintSchema,
+} from './schema';
 export type { PortfolioBlueprintInput } from './schema';
 export {
   isValidBlueprint,

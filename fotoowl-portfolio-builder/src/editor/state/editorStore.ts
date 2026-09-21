@@ -34,8 +34,10 @@ import {
 } from '../history';
 import {
   createPortfolioFromTheme,
-  theme01,
-} from '../../themes/theme-01';
+  getDefaultTheme,
+  requireTheme,
+  type ThemeDefinition,
+} from '../../themes';
 
 interface EditorState {
   /** Persistent portfolio state — source of truth. */
@@ -56,7 +58,9 @@ interface EditorState {
   /** Responsive preview mode (editor runtime). */
   viewportId: EditorViewportId;
 
-  loadTheme: (theme?: PortfolioBlueprint) => void;
+  /** Load a theme by registry id (clones — never mutates the theme source). */
+  loadThemeById: (themeId: string) => void;
+  loadTheme: (theme?: ThemeDefinition) => void;
   /** Sync from Puck onChange — records history when Blueprint changes. */
   syncFromPuck: (data: Data) => void;
   selectNode: (nodeId: string | null) => void;
@@ -76,8 +80,7 @@ interface EditorState {
 }
 
 function loadInitialBlueprint(): PortfolioBlueprint {
-  const draft = createPortfolioFromTheme(theme01);
-  return validateBlueprint(draft);
+  return validateBlueprint(createPortfolioFromTheme(getDefaultTheme()));
 }
 
 function withSyncLock(set: (partial: Partial<EditorState>) => void) {
@@ -116,7 +119,8 @@ function commitBlueprintChange(
   set({
     blueprint: params.after,
     history: pushHistoryEntry(get().history, entry),
-    editorEpoch: params.remount === false ? get().editorEpoch : get().editorEpoch + 1,
+    editorEpoch:
+      params.remount === false ? get().editorEpoch : get().editorEpoch + 1,
     lastPatchError: null,
     ...(params.selectedNodeId !== undefined
       ? { selectedNodeId: params.selectedNodeId }
@@ -133,7 +137,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   history: createEmptyHistory(),
   viewportId: DEFAULT_VIEWPORT,
 
-  loadTheme: (theme = theme01) => {
+  loadThemeById: (themeId) => {
+    get().loadTheme(requireTheme(themeId));
+  },
+
+  loadTheme: (theme = getDefaultTheme()) => {
     const draft = validateBlueprint(createPortfolioFromTheme(theme));
     withSyncLock(set);
     set({
@@ -207,7 +215,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   setViewport: (viewportId) => {
     if (get().viewportId === viewportId) return;
-    // Remount Puck so initial ui.viewports.current applies.
     set({
       viewportId,
       editorEpoch: get().editorEpoch + 1,

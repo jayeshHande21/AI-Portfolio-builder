@@ -20,6 +20,7 @@ import {
 } from '../editor/state';
 import { canRedo, canUndo } from '../editor/history';
 import { isAboutComponentId } from '../components/registry';
+import { listThemeSummaries } from '../themes';
 import {
   EDITOR_VIEWPORTS,
   type EditorViewportId,
@@ -41,6 +42,8 @@ function BlueprintInspector() {
   const undo = useEditorStore((s) => s.undo);
   const redo = useEditorStore((s) => s.redo);
   const setViewport = useEditorStore((s) => s.setViewport);
+  const loadThemeById = useEditorStore((s) => s.loadThemeById);
+  const themes = listThemeSummaries();
 
   const about = selectAboutSection(blueprint);
   const selected = blueprint.sections.find((s) => s.id === selectedNodeId);
@@ -59,6 +62,26 @@ function BlueprintInspector() {
           <h2 className="fo-inspector__title">{blueprint.name}</h2>
         </div>
       </header>
+
+      <div className="fo-inspector__block">
+        <p className="fo-inspector__label">Theme</p>
+        <select
+          className="fo-inspector__select"
+          value={blueprint.themeId ?? ''}
+          onChange={(event) => loadThemeById(event.target.value)}
+          aria-label="Select theme"
+        >
+          {themes.map((theme) => (
+            <option key={theme.id} value={theme.id}>
+              {theme.name}
+            </option>
+          ))}
+        </select>
+        <p className="fo-inspector__hint">
+          Clones a Blueprint from the registry — source themes are never
+          mutated.
+        </p>
+      </div>
 
       <div className="fo-inspector__block">
         <p className="fo-inspector__label">Selected</p>
@@ -257,7 +280,7 @@ export function Canvas() {
   useHistoryHotkeys();
 
   return (
-    <CanvasFrame>
+    <CanvasFrame tokens={blueprint.tokens}>
       <BlueprintInspector />
       <div className="fo-canvas__puck">
         <Puck

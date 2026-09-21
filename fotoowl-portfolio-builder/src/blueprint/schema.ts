@@ -102,11 +102,37 @@ export const assetSchema = z
   })
   .strict();
 
+export const designTokensSchema = z
+  .object({
+    colors: z
+      .object({
+        ink: z.string(),
+        paper: z.string(),
+        accent: z.string(),
+        muted: z.string(),
+      })
+      .strict(),
+    typography: z
+      .object({
+        display: z.string(),
+        body: z.string(),
+      })
+      .strict(),
+    spacing: z
+      .object({
+        sectionY: z.string(),
+      })
+      .strict(),
+    radius: z.string(),
+  })
+  .strict();
+
 export const portfolioBlueprintSchema = z
   .object({
     id: z.string().min(1),
     name: z.string().min(1),
     themeId: z.string().optional(),
+    tokens: designTokensSchema.optional(),
     assets: z.record(z.string(), assetSchema),
     sections: z.array(blueprintNodeSchema),
   })

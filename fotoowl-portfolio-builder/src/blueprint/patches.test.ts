@@ -10,7 +10,7 @@ import {
   updateNodePatch,
   validateBlueprint,
 } from './index';
-import { createPortfolioFromTheme, theme01 } from '../themes/theme-01';
+import { createPortfolioFromTheme, theme01 } from '../themes';
 
 function sampleBlueprint() {
   return validateBlueprint(createPortfolioFromTheme(theme01));

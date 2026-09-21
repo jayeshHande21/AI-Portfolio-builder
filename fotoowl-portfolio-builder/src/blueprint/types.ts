@@ -82,8 +82,28 @@ export interface PortfolioBlueprint {
   name: string;
   /** Theme this portfolio was cloned from (never mutate the theme itself). */
   themeId?: string;
+  /** Design tokens copied from the theme at clone time. */
+  tokens?: DesignTokens;
   assets: Record<AssetId, Asset>;
   sections: BlueprintNode[];
+}
+
+/** Shared theme / portfolio design token model. */
+export interface DesignTokens {
+  colors: {
+    ink: string;
+    paper: string;
+    accent: string;
+    muted: string;
+  };
+  typography: {
+    display: string;
+    body: string;
+  };
+  spacing: {
+    sectionY: string;
+  };
+  radius: string;
 }
 
 /** Stable section component ids used in V1 registry. */

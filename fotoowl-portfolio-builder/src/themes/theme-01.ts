@@ -1,16 +1,16 @@
 /**
- * Sample theme 01 — starting Portfolio Blueprint for the Canvas POC.
- * Themes are starting points; user portfolios must not mutate theme source data.
+ * Theme 01 — Editorial Wedding
+ * Shared components: hero.editorial, about.image_left, gallery.masonry, footer.minimal
  */
 import type { PortfolioBlueprint } from '../blueprint';
 import heroUrl from '../assets/hero.png';
+import { unsplash } from './media';
+import { defaultDesignTokens } from './tokens';
+import type { ThemeDefinition } from './types';
 
-const unsplash = (id: string, w = 1200) =>
-  `https://images.unsplash.com/${id}?auto=format&fit=crop&w=${w}&q=80`;
-
-export const theme01: PortfolioBlueprint = {
-  id: 'portfolio-theme-01-draft',
-  name: 'Sample Theme 01',
+const blueprint: PortfolioBlueprint = {
+  id: 'theme-01-source',
+  name: 'Editorial Wedding',
   themeId: 'theme-01',
   assets: {
     asset_hero: {
@@ -22,26 +22,6 @@ export const theme01: PortfolioBlueprint = {
       id: 'asset_portrait',
       url: unsplash('photo-1554048612-b6a482bc67e5', 900),
       alt: 'Photographer portrait',
-    },
-    asset_g1: {
-      id: 'asset_g1',
-      url: unsplash('photo-1519741497674-611481863552'),
-      alt: 'Wedding ceremony',
-    },
-    asset_g2: {
-      id: 'asset_g2',
-      url: unsplash('photo-1465495976277-4387d4b0b4c6'),
-      alt: 'Detail ring shot',
-    },
-    asset_g3: {
-      id: 'asset_g3',
-      url: unsplash('photo-1529636798458-92182e662485'),
-      alt: 'Reception dance',
-    },
-    asset_g4: {
-      id: 'asset_g4',
-      url: unsplash('photo-1511285560929-80b456fe0c7f'),
-      alt: 'Portrait session',
     },
   },
   sections: [
@@ -111,9 +91,20 @@ export const theme01: PortfolioBlueprint = {
   ],
 };
 
-/** Clone theme into a fresh portfolio draft (never mutate the theme module). */
-export function createPortfolioFromTheme(
-  theme: PortfolioBlueprint,
-): PortfolioBlueprint {
-  return structuredClone(theme);
-}
+export const theme01: ThemeDefinition = {
+  id: 'theme-01',
+  name: 'Editorial Wedding',
+  description:
+    'Cinematic wedding portfolio with an editorial hero and story-led About.',
+  category: 'wedding',
+  blueprint,
+  tokens: {
+    ...defaultDesignTokens,
+    colors: {
+      ink: '#14181c',
+      paper: '#f3f1ec',
+      accent: '#0f6e6a',
+      muted: '#5b656e',
+    },
+  },
+};

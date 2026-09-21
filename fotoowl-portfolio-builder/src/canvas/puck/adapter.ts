@@ -122,6 +122,7 @@ export function puckDataToBlueprint(
         ? rootProps.title
         : previous.name,
     themeId: previous.themeId,
+    tokens: previous.tokens,
     assets: previous.assets,
     sections: content.map((item) =>
       puckItemToSection({

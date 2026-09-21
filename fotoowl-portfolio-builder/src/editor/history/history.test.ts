@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { validateBlueprint } from '../../blueprint';
-import { createPortfolioFromTheme, theme01 } from '../../themes/theme-01';
+import { createPortfolioFromTheme, theme01 } from '../../themes';
 import {
   canRedo,
   canUndo,

@@ -4,7 +4,7 @@ import {
   blueprintToPuckData,
   puckDataToBlueprint,
 } from '../canvas/puck/adapter';
-import { theme01, createPortfolioFromTheme } from '../themes/theme-01';
+import { theme01, createPortfolioFromTheme } from '../themes';
 
 describe('Blueprint ↔ Puck adapter', () => {
   it('validates the sample theme', () => {
