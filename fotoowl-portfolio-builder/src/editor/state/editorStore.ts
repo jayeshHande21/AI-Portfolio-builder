@@ -15,7 +15,23 @@ import {
   blueprintToPuckData,
   puckDataToBlueprint,
 } from '../../canvas/puck/adapter';
+import {
+  DEFAULT_VIEWPORT,
+  type EditorViewportId,
+  viewportIdFromWidth,
+} from '../../canvas/viewport';
 import { createFlipAboutLayoutPatch } from '../commands';
+import {
+  blueprintsEqualForHistory,
+  canRedo,
+  canUndo,
+  createEmptyHistory,
+  createHistoryEntry,
+  type HistoryState,
+  pushHistoryEntry,
+  redoHistory,
+  undoHistory,
+} from '../history';
 import {
   createPortfolioFromTheme,
   theme01,
@@ -35,16 +51,21 @@ interface EditorState {
   syncLocked: boolean;
   /** Last patch error (editor UI can surface this). */
   lastPatchError: string | null;
+  /** Undo/redo stack (editor runtime). */
+  history: HistoryState;
+  /** Responsive preview mode (editor runtime). */
+  viewportId: EditorViewportId;
 
   loadTheme: (theme?: PortfolioBlueprint) => void;
-  /** Sync from Puck onChange — does not remount. */
+  /** Sync from Puck onChange — records history when Blueprint changes. */
   syncFromPuck: (data: Data) => void;
   selectNode: (nodeId: string | null) => void;
-  /**
-   * Apply a validated Blueprint patch (manual + AI share this path).
-   * Remounts Puck when structure/content changes via patch.
-   */
-  applyBlueprintPatch: (patch: BlueprintPatch) => boolean;
+  applyBlueprintPatch: (patch: BlueprintPatch, label?: string) => boolean;
+  undo: () => boolean;
+  redo: () => boolean;
+  setViewport: (viewportId: EditorViewportId) => void;
+  /** Sync viewport id when user switches via Puck's built-in controls. */
+  syncViewportFromWidth: (width: number | '100%') => void;
   flipAboutLayout: () => void;
   setSectionComponent: (
     sectionId: string,
@@ -64,12 +85,53 @@ function withSyncLock(set: (partial: Partial<EditorState>) => void) {
   window.setTimeout(() => set({ syncLocked: false }), 100);
 }
 
+function commitBlueprintChange(
+  set: (
+    partial:
+      | Partial<EditorState>
+      | ((state: EditorState) => Partial<EditorState>),
+  ) => void,
+  get: () => EditorState,
+  params: {
+    before: PortfolioBlueprint;
+    after: PortfolioBlueprint;
+    label: string;
+    patch?: BlueprintPatch;
+    remount?: boolean;
+    selectedNodeId?: string | null;
+  },
+) {
+  if (blueprintsEqualForHistory(params.before, params.after)) {
+    return;
+  }
+
+  const entry = createHistoryEntry({
+    before: params.before,
+    after: params.after,
+    label: params.label,
+    patch: params.patch,
+  });
+
+  withSyncLock(set);
+  set({
+    blueprint: params.after,
+    history: pushHistoryEntry(get().history, entry),
+    editorEpoch: params.remount === false ? get().editorEpoch : get().editorEpoch + 1,
+    lastPatchError: null,
+    ...(params.selectedNodeId !== undefined
+      ? { selectedNodeId: params.selectedNodeId }
+      : {}),
+  });
+}
+
 export const useEditorStore = create<EditorState>((set, get) => ({
   blueprint: loadInitialBlueprint(),
   selectedNodeId: null,
   editorEpoch: 0,
   syncLocked: false,
   lastPatchError: null,
+  history: createEmptyHistory(),
+  viewportId: DEFAULT_VIEWPORT,
 
   loadTheme: (theme = theme01) => {
     const draft = validateBlueprint(createPortfolioFromTheme(theme));
@@ -79,6 +141,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       selectedNodeId: null,
       editorEpoch: get().editorEpoch + 1,
       lastPatchError: null,
+      history: createEmptyHistory(),
     });
   },
 
@@ -86,39 +149,90 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     if (get().syncLocked) {
       return;
     }
-    const next = puckDataToBlueprint(data, get().blueprint);
-    const parsed = validateBlueprint(next);
-    set({ blueprint: parsed, lastPatchError: null });
+    const before = get().blueprint;
+    const next = validateBlueprint(puckDataToBlueprint(data, before));
+    commitBlueprintChange(set, get, {
+      before,
+      after: next,
+      label: 'Manual edit',
+      remount: false,
+    });
   },
 
   selectNode: (nodeId) => set({ selectedNodeId: nodeId }),
 
-  applyBlueprintPatch: (patch) => {
-    const result = applyPatch(get().blueprint, patch);
+  applyBlueprintPatch: (patch, label = `Patch:${patch.op}`) => {
+    const before = get().blueprint;
+    const result = applyPatch(before, patch);
     if (!result.ok) {
       set({ lastPatchError: result.error });
       return false;
     }
 
+    commitBlueprintChange(set, get, {
+      before,
+      after: result.blueprint,
+      label,
+      patch,
+      remount: true,
+    });
+    return true;
+  },
+
+  undo: () => {
+    const stepped = undoHistory(get().history);
+    if (!stepped) return false;
     withSyncLock(set);
     set({
-      blueprint: result.blueprint,
+      blueprint: stepped.blueprint,
+      history: stepped.history,
       editorEpoch: get().editorEpoch + 1,
       lastPatchError: null,
     });
     return true;
   },
 
+  redo: () => {
+    const stepped = redoHistory(get().history);
+    if (!stepped) return false;
+    withSyncLock(set);
+    set({
+      blueprint: stepped.blueprint,
+      history: stepped.history,
+      editorEpoch: get().editorEpoch + 1,
+      lastPatchError: null,
+    });
+    return true;
+  },
+
+  setViewport: (viewportId) => {
+    if (get().viewportId === viewportId) return;
+    // Remount Puck so initial ui.viewports.current applies.
+    set({
+      viewportId,
+      editorEpoch: get().editorEpoch + 1,
+    });
+  },
+
+  syncViewportFromWidth: (width) => {
+    const next = viewportIdFromWidth(width);
+    if (next !== get().viewportId) {
+      set({ viewportId: next });
+    }
+  },
+
   setSectionComponent: (sectionId, component) => {
-    get().applyBlueprintPatch(updateNodePatch(sectionId, { component }));
+    get().applyBlueprintPatch(
+      updateNodePatch(sectionId, { component }),
+      'Update component',
+    );
   },
 
   flipAboutLayout: () => {
     const patch = createFlipAboutLayoutPatch(get().blueprint);
     if (!patch) return;
-    const targetId =
-      patch.op === 'update' ? patch.targetId : null;
-    if (get().applyBlueprintPatch(patch) && targetId) {
+    const targetId = patch.op === 'update' ? patch.targetId : null;
+    if (get().applyBlueprintPatch(patch, 'Flip About layout') && targetId) {
       get().selectNode(targetId);
     }
   },
@@ -145,11 +259,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const b = orderedIds[swapWith]!;
     orderedIds[index] = b;
     orderedIds[swapWith] = a;
-    get().applyBlueprintPatch({
-      op: 'reorder',
-      parentId: null,
-      orderedIds,
-    });
+    get().applyBlueprintPatch(
+      { op: 'reorder', parentId: null, orderedIds },
+      `Reorder section ${direction}`,
+    );
   },
 
   deleteSelectedSection: () => {
@@ -158,7 +271,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       set({ lastPatchError: 'No section selected' });
       return;
     }
-    if (get().applyBlueprintPatch({ op: 'delete', targetId: selectedNodeId })) {
+    if (
+      get().applyBlueprintPatch(
+        { op: 'delete', targetId: selectedNodeId },
+        'Delete section',
+      )
+    ) {
       set({ selectedNodeId: null });
     }
   },
@@ -169,8 +287,18 @@ export function selectPuckData(blueprint: PortfolioBlueprint): Data {
 }
 
 export function selectAboutSection(blueprint: PortfolioBlueprint) {
-  const about = blueprint.sections.find((s) =>
-    s.component === 'about.image_left' || s.component === 'about.image_right',
+  const about = blueprint.sections.find(
+    (s) =>
+      s.component === 'about.image_left' ||
+      s.component === 'about.image_right',
   );
   return about ? findSection(blueprint, about.id) : undefined;
+}
+
+export function selectCanUndo(): boolean {
+  return canUndo(useEditorStore.getState().history);
+}
+
+export function selectCanRedo(): boolean {
+  return canRedo(useEditorStore.getState().history);
 }

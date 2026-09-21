@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Puck } from '@puckeditor/core';
 import type { Data } from '@puckeditor/core';
 import {
@@ -5,14 +6,26 @@ import {
   ArrowLeftRight,
   ArrowUp,
   Layers,
+  Monitor,
+  Redo2,
+  Smartphone,
+  Tablet,
   Trash2,
+  Undo2,
 } from 'lucide-react';
 import {
   selectAboutSection,
   selectPuckData,
   useEditorStore,
 } from '../editor/state';
+import { canRedo, canUndo } from '../editor/history';
 import { isAboutComponentId } from '../components/registry';
+import {
+  EDITOR_VIEWPORTS,
+  type EditorViewportId,
+  toPuckViewportUi,
+  toPuckViewports,
+} from './viewport';
 import { puckConfig } from './puck/config';
 import { CanvasFrame } from './CanvasFrame';
 
@@ -20,14 +33,22 @@ function BlueprintInspector() {
   const blueprint = useEditorStore((s) => s.blueprint);
   const selectedNodeId = useEditorStore((s) => s.selectedNodeId);
   const lastPatchError = useEditorStore((s) => s.lastPatchError);
+  const history = useEditorStore((s) => s.history);
+  const viewportId = useEditorStore((s) => s.viewportId);
   const flipAboutLayout = useEditorStore((s) => s.flipAboutLayout);
   const moveSelectedSection = useEditorStore((s) => s.moveSelectedSection);
   const deleteSelectedSection = useEditorStore((s) => s.deleteSelectedSection);
+  const undo = useEditorStore((s) => s.undo);
+  const redo = useEditorStore((s) => s.redo);
+  const setViewport = useEditorStore((s) => s.setViewport);
+
   const about = selectAboutSection(blueprint);
   const selected = blueprint.sections.find((s) => s.id === selectedNodeId);
   const selectedIndex = selected
     ? blueprint.sections.findIndex((s) => s.id === selected.id)
     : -1;
+  const undoEnabled = canUndo(history);
+  const redoEnabled = canRedo(history);
 
   return (
     <aside className="fo-inspector" aria-label="Blueprint inspector">
@@ -46,6 +67,61 @@ function BlueprintInspector() {
             ? `${selected.id} · ${selected.component ?? selected.type}`
             : 'None — click a section in the canvas'}
         </p>
+      </div>
+
+      <div className="fo-inspector__block">
+        <p className="fo-inspector__label">History</p>
+        <div className="fo-inspector__actions">
+          <button
+            type="button"
+            className="fo-inspector__btn fo-inspector__btn--ghost"
+            onClick={() => undo()}
+            disabled={!undoEnabled}
+            title="Undo (⌘Z)"
+          >
+            <Undo2 size={14} aria-hidden />
+            Undo
+          </button>
+          <button
+            type="button"
+            className="fo-inspector__btn fo-inspector__btn--ghost"
+            onClick={() => redo()}
+            disabled={!redoEnabled}
+            title="Redo (⌘⇧Z)"
+          >
+            <Redo2 size={14} aria-hidden />
+            Redo
+          </button>
+        </div>
+        <p className="fo-inspector__hint">
+          {history.past.length} undo · {history.future.length} redo
+        </p>
+      </div>
+
+      <div className="fo-inspector__block">
+        <p className="fo-inspector__label">Viewport</p>
+        <div className="fo-inspector__actions">
+          {(Object.keys(EDITOR_VIEWPORTS) as EditorViewportId[]).map((id) => {
+            const Icon =
+              id === 'mobile' ? Smartphone : id === 'tablet' ? Tablet : Monitor;
+            return (
+              <button
+                key={id}
+                type="button"
+                className={
+                  viewportId === id
+                    ? 'fo-inspector__btn fo-inspector__btn--ghost is-active'
+                    : 'fo-inspector__btn fo-inspector__btn--ghost'
+                }
+                onClick={() => setViewport(id)}
+                title={EDITOR_VIEWPORTS[id].label}
+              >
+                <Icon size={14} aria-hidden />
+                {EDITOR_VIEWPORTS[id].label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="fo-inspector__block">
@@ -95,10 +171,6 @@ function BlueprintInspector() {
           <ArrowLeftRight size={14} aria-hidden />
           Flip About ({about?.component ?? '—'})
         </button>
-        <p className="fo-inspector__hint">
-          All actions apply validated Blueprint patches (add / update / delete /
-          move / reorder / replace).
-        </p>
         {lastPatchError ? (
           <p className="fo-inspector__error" role="alert">
             {lastPatchError}
@@ -138,15 +210,51 @@ function selectedIdFromPuckData(
   return typeof id === 'string' ? id : null;
 }
 
+function useHistoryHotkeys() {
+  const undo = useEditorStore((s) => s.undo);
+  const redo = useEditorStore((s) => s.redo);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const mod = event.metaKey || event.ctrlKey;
+      if (!mod || event.key.toLowerCase() !== 'z') return;
+
+      const target = event.target as HTMLElement | null;
+      const tag = target?.tagName;
+      if (
+        tag === 'INPUT' ||
+        tag === 'TEXTAREA' ||
+        target?.isContentEditable
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      if (event.shiftKey) {
+        redo();
+      } else {
+        undo();
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [undo, redo]);
+}
+
 /**
  * Interactive portfolio Canvas — Blueprint → Registry → Puck Adapter → Puck.
  */
 export function Canvas() {
   const blueprint = useEditorStore((s) => s.blueprint);
   const editorEpoch = useEditorStore((s) => s.editorEpoch);
+  const viewportId = useEditorStore((s) => s.viewportId);
   const syncFromPuck = useEditorStore((s) => s.syncFromPuck);
   const selectNode = useEditorStore((s) => s.selectNode);
+  const syncViewportFromWidth = useEditorStore((s) => s.syncViewportFromWidth);
   const puckData = selectPuckData(blueprint);
+
+  useHistoryHotkeys();
 
   return (
     <CanvasFrame>
@@ -160,18 +268,18 @@ export function Canvas() {
           headerPath={`/${blueprint.themeId ?? 'draft'}`}
           height="100%"
           iframe={{ enabled: true }}
+          ui={{
+            viewports: toPuckViewportUi(viewportId),
+          }}
           onChange={syncFromPuck}
           onPublish={syncFromPuck}
           onAction={(_action, appState) => {
             selectNode(
               selectedIdFromPuckData(appState.data, appState.ui.itemSelector),
             );
+            syncViewportFromWidth(appState.ui.viewports.current.width);
           }}
-          viewports={[
-            { width: 360, height: 'auto', icon: 'Smartphone', label: 'Mobile' },
-            { width: 768, height: 'auto', icon: 'Tablet', label: 'Tablet' },
-            { width: 1280, height: 'auto', icon: 'Monitor', label: 'Desktop' },
-          ]}
+          viewports={toPuckViewports()}
         />
       </div>
     </CanvasFrame>
