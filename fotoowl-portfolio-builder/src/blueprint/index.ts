@@ -2,6 +2,7 @@ export type {
   Asset,
   AssetId,
   BlueprintNode,
+  CustomComponentDefinition,
   DesignTokens,
   NodeAnimation,
   NodeId,
@@ -15,6 +16,7 @@ export type {
 export {
   assetSchema,
   blueprintNodeSchema,
+  customComponentDefinitionSchema,
   designTokensSchema,
   portfolioBlueprintSchema,
 } from './schema';

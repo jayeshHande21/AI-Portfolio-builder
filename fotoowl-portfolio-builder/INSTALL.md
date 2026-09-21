@@ -78,6 +78,15 @@ npm run lint           # oxlint
 Without a key, the app falls back to the local keyword planner.
 LLM keys are server-only — never use a `VITE_` prefix for secrets.
 
+### V2 Code AI (custom React components)
+
+1. Select a section → sparkles
+2. Click **Generate a brand-new custom component** (or type that phrase)
+3. Code AI generates TSX + CSS → sandbox validate → register `custom.*` → replace section on Canvas
+
+Works without an API key via a local template; with `OPENAI_API_KEY` the LLM designs the component.
+Generated code cannot use fetch/eval/non-react imports.
+
 ## Next: first POC
 
 ```text

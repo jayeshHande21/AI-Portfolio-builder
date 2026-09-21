@@ -1,6 +1,8 @@
 import type { ComponentType } from 'react';
 import { AboutSection } from '../about';
 import type { AboutSectionProps } from '../about';
+import { getRuntimeCustomComponent } from '../custom';
+import { isCustomComponentId } from '../custom';
 import { FooterMinimal } from '../footer';
 import { GalleryMasonry } from '../gallery';
 import { HeroEditorial } from '../hero';
@@ -10,10 +12,10 @@ type AnyProps = Record<string, unknown>;
 
 /**
  * Maps Blueprint `component` ids → React implementations.
- * Extend as section families grow — keep Blueprint ids stable.
+ * Built-ins are static; `custom.*` resolves from the V2 runtime registry.
  */
 export const componentRegistry: Record<
-  SectionComponentId,
+  Exclude<SectionComponentId, `custom.${string}`>,
   ComponentType<AnyProps>
 > = {
   'hero.editorial': HeroEditorial as ComponentType<AnyProps>,
@@ -23,15 +25,19 @@ export const componentRegistry: Record<
   'footer.minimal': FooterMinimal as ComponentType<AnyProps>,
 };
 
-export type RegistryComponentId = keyof typeof componentRegistry;
+export type BuiltinRegistryComponentId = keyof typeof componentRegistry;
 
 export function resolveComponent(
   componentId: string | undefined,
 ): ComponentType<AnyProps> | null {
-  if (!componentId || !(componentId in componentRegistry)) {
-    return null;
+  if (!componentId) return null;
+  if (isCustomComponentId(componentId)) {
+    return getRuntimeCustomComponent(componentId);
   }
-  return componentRegistry[componentId as RegistryComponentId];
+  if (componentId in componentRegistry) {
+    return componentRegistry[componentId as BuiltinRegistryComponentId];
+  }
+  return null;
 }
 
 export function isAboutComponentId(

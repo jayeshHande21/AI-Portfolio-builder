@@ -9,6 +9,7 @@ type ChatMessage = {
 };
 
 function suggestionsForSection(component: string | undefined): string[] {
+  const codeAiChip = 'Generate a brand-new custom component';
   if (
     component === 'about.image_left' ||
     component === 'about.image_right'
@@ -18,6 +19,7 @@ function suggestionsForSection(component: string | undefined): string[] {
       'Put the image on the right',
       'Put the image on the left',
       'Create a completely new About section',
+      codeAiChip,
       'Title: Stories in Soft Light',
     ];
   }
@@ -26,19 +28,17 @@ function suggestionsForSection(component: string | undefined): string[] {
       'Make this more premium',
       'Title: Quiet Frames',
       'Create a completely new Hero',
+      codeAiChip,
       'CTA: View the collection',
     ];
   }
   if (component === 'gallery.masonry') {
-    return ['Make this more premium', 'Title: Selected Work'];
+    return ['Make this more premium', 'Title: Selected Work', codeAiChip];
   }
-  if (component === 'footer.minimal') {
-    return ['Make this more premium'];
+  if (component === 'footer.minimal' || component?.startsWith('custom.')) {
+    return ['Make this more premium', codeAiChip];
   }
-  return [
-    'Make this more premium',
-    'Title: Stories in Soft Light',
-  ];
+  return ['Make this more premium', codeAiChip, 'Title: Stories in Soft Light'];
 }
 
 /**
@@ -57,7 +57,7 @@ export function SectionAiPanel() {
     {
       id: 'sys',
       role: 'system',
-      text: 'Describe any change for this section. With OPENAI_API_KEY set, a real LLM returns Blueprint patches. Without a key, the local planner handles common prompts only.',
+      text: 'Edit with Section AI, or generate a brand-new custom React component (V2 Code AI). Custom components are sandboxed, registered, then patched into the Blueprint.',
     },
   ]);
 
@@ -169,7 +169,7 @@ export function SectionAiPanel() {
           className="fo-section-ai__submit"
           disabled={!selected || loading || !prompt.trim()}
         >
-          {loading ? 'Planning…' : 'Apply with AI'}
+          {loading ? 'Working…' : 'Apply with AI'}
         </button>
       </form>
     </section>

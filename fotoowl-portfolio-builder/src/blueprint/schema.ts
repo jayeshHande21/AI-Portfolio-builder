@@ -127,6 +127,18 @@ export const designTokensSchema = z
   })
   .strict();
 
+export const customComponentDefinitionSchema = z
+  .object({
+    id: z.string().regex(/^custom\.[a-z0-9_]+$/),
+    label: z.string().min(1),
+    source: z.string().min(1),
+    css: z.string(),
+    defaultProps: z.record(z.string(), z.unknown()),
+    description: z.string().optional(),
+    createdAt: z.string().min(1),
+  })
+  .strict();
+
 export const portfolioBlueprintSchema = z
   .object({
     id: z.string().min(1),
@@ -135,6 +147,9 @@ export const portfolioBlueprintSchema = z
     tokens: designTokensSchema.optional(),
     assets: z.record(z.string(), assetSchema),
     sections: z.array(blueprintNodeSchema),
+    customComponents: z
+      .record(z.string(), customComponentDefinitionSchema)
+      .optional(),
   })
   .strict();
 

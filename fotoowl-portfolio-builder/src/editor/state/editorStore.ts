@@ -1,6 +1,10 @@
 import { create } from 'zustand';
 import type { Data } from '@puckeditor/core';
-import { runSectionAi } from '../../ai';
+import {
+  buildReplacePatchForCustomComponent,
+  runSectionCodeAi,
+  runSectionAi,
+} from '../../ai';
 import type {
   BlueprintPatch,
   PortfolioBlueprint,
@@ -22,6 +26,11 @@ import {
   type EditorViewportId,
   viewportIdFromWidth,
 } from '../../canvas/viewport';
+import {
+  clearRuntimeCustomComponents,
+  registerCustomComponent,
+  registerCustomComponents,
+} from '../../components/custom';
 import { createFlipAboutLayoutPatch } from '../commands';
 import {
   blueprintsEqualForHistory,
@@ -40,6 +49,27 @@ import {
   requireTheme,
   type ThemeDefinition,
 } from '../../themes';
+
+function wantsCodeAi(prompt: string): boolean {
+  const p = prompt.toLowerCase();
+  return [
+    'brand-new custom',
+    'new custom component',
+    'generate a new component',
+    'generate a brand-new',
+    'completely new component',
+    'custom react component',
+    'create a custom component',
+    'create a custom footer',
+    'create a custom section',
+    'brand new custom',
+  ].some((needle) => p.includes(needle));
+}
+
+function syncCustomRuntime(blueprint: PortfolioBlueprint) {
+  clearRuntimeCustomComponents();
+  registerCustomComponents(blueprint.customComponents);
+}
 
 interface EditorState {
   /** Persistent portfolio state — source of truth. */
@@ -76,6 +106,12 @@ interface EditorState {
   applyBlueprintPatches: (patches: BlueprintPatch[], label?: string) => boolean;
   /** Section AI → patches → Blueprint (same mutation path as manual edits). */
   runSectionAiPrompt: (prompt: string) => Promise<{
+    ok: boolean;
+    summary?: string;
+    error?: string;
+  }>;
+  /** V2 Code AI → custom React component → register → replace section. */
+  runSectionCodeAiPrompt: (prompt: string) => Promise<{
     ok: boolean;
     summary?: string;
     error?: string;
@@ -160,6 +196,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   loadTheme: (theme = getDefaultTheme()) => {
     const draft = validateBlueprint(createPortfolioFromTheme(theme));
+    clearRuntimeCustomComponents();
     withSyncLock(set);
     set({
       blueprint: draft,
@@ -244,6 +281,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   runSectionAiPrompt: async (prompt) => {
+    if (wantsCodeAi(prompt)) {
+      return get().runSectionCodeAiPrompt(prompt);
+    }
+
     const { blueprint, selectedNodeId } = get();
     if (!selectedNodeId) {
       const error = 'Select a section before using Section AI';
@@ -263,7 +304,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         result.patches,
         `Section AI: ${result.summary}`,
       );
-      // Re-assert selection after remount clears Puck's itemSelector.
       set({
         sectionAiLoading: false,
         selectedNodeId,
@@ -284,10 +324,86 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }
   },
 
+  runSectionCodeAiPrompt: async (prompt) => {
+    const { blueprint, selectedNodeId } = get();
+    if (!selectedNodeId) {
+      const error = 'Select a section before using Code AI';
+      set({ lastPatchError: error });
+      return { ok: false, error };
+    }
+
+    const section = findSection(blueprint, selectedNodeId);
+    if (!section) {
+      const error = `Section "${selectedNodeId}" not found`;
+      set({ lastPatchError: error });
+      return { ok: false, error };
+    }
+
+    set({ sectionAiLoading: true, lastPatchError: null, sectionAiOpen: true });
+    try {
+      const result = await runSectionCodeAi(
+        blueprint,
+        selectedNodeId,
+        prompt,
+      );
+      if (!result.ok) {
+        set({ lastPatchError: result.error, sectionAiLoading: false });
+        return { ok: false, error: result.error };
+      }
+
+      const registered = registerCustomComponent(result.definition);
+      if (!registered.ok) {
+        set({ lastPatchError: registered.error, sectionAiLoading: false });
+        return { ok: false, error: registered.error };
+      }
+
+      const before = get().blueprint;
+      const withDefinition: PortfolioBlueprint = validateBlueprint({
+        ...before,
+        customComponents: {
+          ...before.customComponents,
+          [result.definition.id]: result.definition,
+        },
+      });
+
+      const patch = buildReplacePatchForCustomComponent(
+        section,
+        result.definition,
+      );
+      const applied = applyPatch(withDefinition, patch);
+      if (!applied.ok) {
+        set({ lastPatchError: applied.error, sectionAiLoading: false });
+        return { ok: false, error: applied.error };
+      }
+
+      commitBlueprintChange(set, get, {
+        before,
+        after: applied.blueprint,
+        label: `Code AI: ${result.summary}`,
+        patch,
+        remount: true,
+        selectedNodeId,
+      });
+      syncCustomRuntime(applied.blueprint);
+      set({
+        sectionAiLoading: false,
+        selectedNodeId,
+        sectionAiOpen: true,
+      });
+      return { ok: true, summary: result.summary };
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Code AI failed';
+      set({ lastPatchError: message, sectionAiLoading: false });
+      return { ok: false, error: message };
+    }
+  },
+
   undo: () => {
     const stepped = undoHistory(get().history);
     if (!stepped) return false;
     withSyncLock(set);
+    syncCustomRuntime(stepped.blueprint);
     set({
       blueprint: stepped.blueprint,
       history: stepped.history,
@@ -301,6 +417,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const stepped = redoHistory(get().history);
     if (!stepped) return false;
     withSyncLock(set);
+    syncCustomRuntime(stepped.blueprint);
     set({
       blueprint: stepped.blueprint,
       history: stepped.history,

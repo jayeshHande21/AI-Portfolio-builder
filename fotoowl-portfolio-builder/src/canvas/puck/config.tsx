@@ -4,6 +4,7 @@
  */
 import type { Config } from '@puckeditor/core';
 import { AboutSection } from '../../components/about';
+import { CustomSectionHost } from '../../components/custom';
 import { FooterMinimal } from '../../components/footer';
 import { GalleryMasonry } from '../../components/gallery';
 import { HeroEditorial } from '../../components/hero';
@@ -34,6 +35,15 @@ export type PuckComponents = {
     tagline: string;
     email: string;
     copyright: string;
+  };
+  CustomSection: {
+    componentId: string;
+    title: string;
+    body: string;
+    brand: string;
+    tagline: string;
+    email: string;
+    ctaLabel: string;
   };
 };
 
@@ -123,11 +133,39 @@ export const puckConfig: Config<PuckComponents> = {
       },
       render: (props) => <FooterMinimal {...props} />,
     },
+    CustomSection: {
+      label: 'Custom · AI',
+      fields: {
+        componentId: { type: 'text', label: 'Component id' },
+        title: { type: 'text', label: 'Title' },
+        body: { type: 'textarea', label: 'Body' },
+        brand: { type: 'text', label: 'Brand' },
+        tagline: { type: 'text', label: 'Tagline' },
+        email: { type: 'text', label: 'Email' },
+        ctaLabel: { type: 'text', label: 'CTA label' },
+      },
+      defaultProps: {
+        componentId: 'custom.placeholder',
+        title: '',
+        body: '',
+        brand: '',
+        tagline: '',
+        email: '',
+        ctaLabel: '',
+      },
+      render: (props) => <CustomSectionHost {...props} />,
+    },
   },
   categories: {
     sections: {
       title: 'Sections',
-      components: ['HeroEditorial', 'About', 'GalleryMasonry', 'FooterMinimal'],
+      components: [
+        'HeroEditorial',
+        'About',
+        'GalleryMasonry',
+        'FooterMinimal',
+        'CustomSection',
+      ],
       defaultExpanded: true,
     },
   },

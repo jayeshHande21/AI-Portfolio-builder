@@ -10,6 +10,7 @@ import type {
   NodeStyles,
   PortfolioBlueprint,
 } from '../../blueprint';
+import { isCustomComponentId } from '../../components/custom';
 import {
   aboutComponentIdFromLayout,
   aboutLayoutFromComponentId,
@@ -22,7 +23,8 @@ export type PuckSectionType =
   | 'HeroEditorial'
   | 'About'
   | 'GalleryMasonry'
-  | 'FooterMinimal';
+  | 'FooterMinimal'
+  | 'CustomSection';
 
 const COMPONENT_TO_PUCK: Record<string, PuckSectionType> = {
   'hero.editorial': 'HeroEditorial',
@@ -32,12 +34,13 @@ const COMPONENT_TO_PUCK: Record<string, PuckSectionType> = {
   'footer.minimal': 'FooterMinimal',
 };
 
-const PUCK_TO_COMPONENT: Record<PuckSectionType, string> = {
-  HeroEditorial: 'hero.editorial',
-  About: 'about.image_left', // refined by layout prop
-  GalleryMasonry: 'gallery.masonry',
-  FooterMinimal: 'footer.minimal',
-};
+const PUCK_TO_COMPONENT: Record<Exclude<PuckSectionType, 'CustomSection'>, string> =
+  {
+    HeroEditorial: 'hero.editorial',
+    About: 'about.image_left', // refined by layout prop
+    GalleryMasonry: 'gallery.masonry',
+    FooterMinimal: 'footer.minimal',
+  };
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
@@ -54,20 +57,30 @@ function asNodeStyles(value: unknown): NodeStyles | undefined {
 
 function sectionToPuckItem(section: BlueprintNode) {
   const componentId = section.component ?? '';
-  const puckType = COMPONENT_TO_PUCK[componentId];
+  const props = { ...asRecord(section.props) };
 
+  if (section.styles) {
+    props[FO_STYLES_PROP] = section.styles;
+  }
+
+  if (isCustomComponentId(componentId)) {
+    return {
+      type: 'CustomSection' as const,
+      props: {
+        ...props,
+        componentId,
+        id: section.id,
+      },
+    };
+  }
+
+  const puckType = COMPONENT_TO_PUCK[componentId];
   if (!puckType) {
     throw new Error(`No Puck mapping for component "${componentId}"`);
   }
 
-  const props = { ...asRecord(section.props) };
-
   if (isAboutComponentId(componentId)) {
     props.layout = aboutLayoutFromComponentId(componentId);
-  }
-
-  if (section.styles) {
-    props[FO_STYLES_PROP] = section.styles;
   }
 
   return {
@@ -98,22 +111,33 @@ function puckItemToSection(item: {
   type: string;
   props: Record<string, unknown>;
 }): BlueprintNode {
-  const { id, layout, [FO_STYLES_PROP]: foStyles, ...rest } = item.props;
+  const {
+    id,
+    layout,
+    componentId: customComponentId,
+    [FO_STYLES_PROP]: foStyles,
+    ...rest
+  } = item.props;
   const puckType = item.type as PuckSectionType;
 
-  let component = PUCK_TO_COMPONENT[puckType] ?? item.type;
-
-  if (puckType === 'About') {
-    const aboutLayout =
-      layout === 'image_right' || layout === 'image_left'
-        ? layout
-        : 'image_left';
-    component = aboutComponentIdFromLayout(aboutLayout);
-  }
-
+  let component: string;
   const props: Record<string, unknown> = { ...rest };
-  if (puckType === 'About') {
-    delete props.layout;
+
+  if (puckType === 'CustomSection') {
+    component =
+      typeof customComponentId === 'string'
+        ? customComponentId
+        : 'custom.unknown';
+  } else {
+    component = PUCK_TO_COMPONENT[puckType] ?? item.type;
+    if (puckType === 'About') {
+      const aboutLayout =
+        layout === 'image_right' || layout === 'image_left'
+          ? layout
+          : 'image_left';
+      component = aboutComponentIdFromLayout(aboutLayout);
+      delete props.layout;
+    }
   }
 
   const styles = asNodeStyles(foStyles);
@@ -128,7 +152,7 @@ function puckItemToSection(item: {
 }
 
 /**
- * Convert Puck Data → Portfolio Blueprint, preserving assets / meta from previous Blueprint.
+ * Convert Puck Data → Portfolio Blueprint, preserving assets / meta / customs.
  */
 export function puckDataToBlueprint(
   data: Data,
@@ -146,6 +170,7 @@ export function puckDataToBlueprint(
     themeId: previous.themeId,
     tokens: previous.tokens,
     assets: previous.assets,
+    customComponents: previous.customComponents,
     sections: content.map((item) =>
       puckItemToSection({
         type: item.type,
@@ -158,5 +183,6 @@ export function puckDataToBlueprint(
 export function getPuckTypeForComponent(
   componentId: string,
 ): PuckSectionType | undefined {
+  if (isCustomComponentId(componentId)) return 'CustomSection';
   return COMPONENT_TO_PUCK[componentId];
 }
