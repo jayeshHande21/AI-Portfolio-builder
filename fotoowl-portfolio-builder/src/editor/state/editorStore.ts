@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { Data } from '@puckeditor/core';
+import { runSectionAi } from '../../ai';
 import type {
   BlueprintPatch,
   PortfolioBlueprint,
@@ -7,6 +8,7 @@ import type {
 } from '../../blueprint';
 import {
   applyPatch,
+  applyPatches,
   findSection,
   updateNodePatch,
   validateBlueprint,
@@ -51,12 +53,14 @@ interface EditorState {
   editorEpoch: number;
   /** Blocks Puck onChange echoes while Blueprint-driven remounts settle. */
   syncLocked: boolean;
-  /** Last patch error (editor UI can surface this). */
+  /** Last patch / AI error (editor UI can surface this). */
   lastPatchError: string | null;
   /** Undo/redo stack (editor runtime). */
   history: HistoryState;
   /** Responsive preview mode (editor runtime). */
   viewportId: EditorViewportId;
+  /** Section AI in-flight flag (editor runtime). */
+  sectionAiLoading: boolean;
 
   /** Load a theme by registry id (clones — never mutates the theme source). */
   loadThemeById: (themeId: string) => void;
@@ -65,6 +69,13 @@ interface EditorState {
   syncFromPuck: (data: Data) => void;
   selectNode: (nodeId: string | null) => void;
   applyBlueprintPatch: (patch: BlueprintPatch, label?: string) => boolean;
+  applyBlueprintPatches: (patches: BlueprintPatch[], label?: string) => boolean;
+  /** Section AI → patches → Blueprint (same mutation path as manual edits). */
+  runSectionAiPrompt: (prompt: string) => Promise<{
+    ok: boolean;
+    summary?: string;
+    error?: string;
+  }>;
   undo: () => boolean;
   redo: () => boolean;
   setViewport: (viewportId: EditorViewportId) => void;
@@ -136,6 +147,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   lastPatchError: null,
   history: createEmptyHistory(),
   viewportId: DEFAULT_VIEWPORT,
+  sectionAiLoading: false,
 
   loadThemeById: (themeId) => {
     get().loadTheme(requireTheme(themeId));
@@ -185,6 +197,64 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       remount: true,
     });
     return true;
+  },
+
+  applyBlueprintPatches: (patches, label = 'Section AI') => {
+    if (patches.length === 0) {
+      set({ lastPatchError: 'No patches to apply' });
+      return false;
+    }
+    const before = get().blueprint;
+    const result = applyPatches(before, patches);
+    if (!result.ok) {
+      set({ lastPatchError: result.error });
+      return false;
+    }
+
+    commitBlueprintChange(set, get, {
+      before,
+      after: result.blueprint,
+      label,
+      patch: patches[0],
+      remount: true,
+    });
+    return true;
+  },
+
+  runSectionAiPrompt: async (prompt) => {
+    const { blueprint, selectedNodeId } = get();
+    if (!selectedNodeId) {
+      const error = 'Select a section before using Section AI';
+      set({ lastPatchError: error });
+      return { ok: false, error };
+    }
+
+    set({ sectionAiLoading: true, lastPatchError: null });
+    try {
+      const result = await runSectionAi(blueprint, selectedNodeId, prompt);
+      if (!result.ok) {
+        set({ lastPatchError: result.error, sectionAiLoading: false });
+        return { ok: false, error: result.error };
+      }
+
+      const applied = get().applyBlueprintPatches(
+        result.patches,
+        `Section AI: ${result.summary}`,
+      );
+      set({ sectionAiLoading: false });
+      if (!applied) {
+        return {
+          ok: false,
+          error: get().lastPatchError ?? 'Failed to apply AI patches',
+        };
+      }
+      return { ok: true, summary: result.summary };
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Section AI failed';
+      set({ lastPatchError: message, sectionAiLoading: false });
+      return { ok: false, error: message };
+    }
   },
 
   undo: () => {

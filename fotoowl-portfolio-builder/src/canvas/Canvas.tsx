@@ -21,6 +21,7 @@ import {
 import { canRedo, canUndo } from '../editor/history';
 import { isAboutComponentId } from '../components/registry';
 import { listThemeSummaries } from '../themes';
+import { SectionAiPanel } from '../ai/SectionAiPanel';
 import {
   EDITOR_VIEWPORTS,
   type EditorViewportId,
@@ -219,6 +220,8 @@ function BlueprintInspector() {
           ))}
         </ul>
       </div>
+
+      <SectionAiPanel />
     </aside>
   );
 }
