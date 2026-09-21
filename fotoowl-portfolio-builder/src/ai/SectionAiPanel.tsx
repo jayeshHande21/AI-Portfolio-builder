@@ -57,7 +57,7 @@ export function SectionAiPanel() {
     {
       id: 'sys',
       role: 'system',
-      text: 'Describe the change for this section. Section AI returns Blueprint patches only.',
+      text: 'Describe any change for this section. With OPENAI_API_KEY set, a real LLM returns Blueprint patches. Without a key, the local planner handles common prompts only.',
     },
   ]);
 

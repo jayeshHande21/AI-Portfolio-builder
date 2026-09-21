@@ -1,3 +1,8 @@
+import type { CSSProperties } from 'react';
+import type { NodeStyles } from '../../blueprint/types';
+import { stylesToCss } from '../../lib/stylesToCss';
+import { FO_STYLES_PROP } from '../../canvas/puck/styleProp';
+
 export type AboutLayout = 'image_left' | 'image_right';
 
 export interface AboutSectionProps {
@@ -7,6 +12,7 @@ export interface AboutSectionProps {
   imageUrl?: string;
   imageAlt?: string;
   ctaLabel?: string;
+  [FO_STYLES_PROP]?: NodeStyles;
 }
 
 export function AboutSection({
@@ -16,14 +22,17 @@ export function AboutSection({
   imageUrl,
   imageAlt = '',
   ctaLabel = 'Get in touch',
+  [FO_STYLES_PROP]: foStyles,
 }: AboutSectionProps) {
   const componentId =
     layout === 'image_right' ? 'about.image_right' : 'about.image_left';
+  const style = stylesToCss(foStyles) as CSSProperties | undefined;
 
   return (
     <section
       className={`fo-about fo-about--${layout}`}
       data-component={componentId}
+      style={style}
     >
       <div className="fo-about__media">
         {imageUrl ? (

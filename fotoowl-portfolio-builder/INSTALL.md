@@ -61,11 +61,22 @@ Puck adapter stub: `src/canvas/puck/adapter.ts`.
 
 ```bash
 cd fotoowl-portfolio-builder
-npm run dev      # local editor
-npm run build    # typecheck + production build
-npm run test     # vitest
-npm run lint     # oxlint
+cp .env.example .env   # then set OPENAI_API_KEY for real Section AI
+npm run dev            # Vite + /api/ai/section LLM middleware
+npm run build          # typecheck + production build
+npm run test           # vitest
+npm run lint           # oxlint
 ```
+
+### Section AI (real LLM)
+
+1. Copy `.env.example` → `.env`
+2. Set `OPENAI_API_KEY` (OpenAI or any OpenAI-compatible provider via `OPENAI_BASE_URL` / `OPENAI_MODEL`)
+3. Restart `npm run dev`
+4. Select a section → sparkles → free-form prompt (e.g. “use a red background”)
+
+Without a key, the app falls back to the local keyword planner.
+LLM keys are server-only — never use a `VITE_` prefix for secrets.
 
 ## Next: first POC
 

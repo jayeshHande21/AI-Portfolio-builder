@@ -1,4 +1,7 @@
 import type { CSSProperties } from 'react';
+import type { NodeStyles } from '../../blueprint/types';
+import { stylesToCss } from '../../lib/stylesToCss';
+import { FO_STYLES_PROP } from '../../canvas/puck/styleProp';
 
 export interface HeroEditorialProps {
   eyebrow?: string;
@@ -7,6 +10,7 @@ export interface HeroEditorialProps {
   ctaLabel?: string;
   imageUrl?: string;
   imageAlt?: string;
+  [FO_STYLES_PROP]?: NodeStyles;
 }
 
 export function HeroEditorial({
@@ -16,8 +20,10 @@ export function HeroEditorial({
   ctaLabel = 'View work',
   imageUrl,
   imageAlt = '',
+  [FO_STYLES_PROP]: foStyles,
 }: HeroEditorialProps) {
   const style = {
+    ...stylesToCss(foStyles),
     '--hero-image': imageUrl ? `url(${imageUrl})` : undefined,
   } as CSSProperties;
 

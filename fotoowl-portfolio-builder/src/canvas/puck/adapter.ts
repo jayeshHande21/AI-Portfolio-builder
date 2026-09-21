@@ -5,15 +5,24 @@
  * Puck types/props are an editor projection — never leak into domain types.
  */
 import type { Data } from '@puckeditor/core';
-import type { BlueprintNode, PortfolioBlueprint } from '../../blueprint';
+import type {
+  BlueprintNode,
+  NodeStyles,
+  PortfolioBlueprint,
+} from '../../blueprint';
 import {
   aboutComponentIdFromLayout,
   aboutLayoutFromComponentId,
   isAboutComponentId,
 } from '../../components/registry';
+import { FO_STYLES_PROP } from './styleProp';
 
 /** Puck component type names (editor-only). */
-export type PuckSectionType = 'HeroEditorial' | 'About' | 'GalleryMasonry' | 'FooterMinimal';
+export type PuckSectionType =
+  | 'HeroEditorial'
+  | 'About'
+  | 'GalleryMasonry'
+  | 'FooterMinimal';
 
 const COMPONENT_TO_PUCK: Record<string, PuckSectionType> = {
   'hero.editorial': 'HeroEditorial',
@@ -36,6 +45,13 @@ function asRecord(value: unknown): Record<string, unknown> {
     : {};
 }
 
+function asNodeStyles(value: unknown): NodeStyles | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return undefined;
+  }
+  return value as NodeStyles;
+}
+
 function sectionToPuckItem(section: BlueprintNode) {
   const componentId = section.component ?? '';
   const puckType = COMPONENT_TO_PUCK[componentId];
@@ -48,6 +64,10 @@ function sectionToPuckItem(section: BlueprintNode) {
 
   if (isAboutComponentId(componentId)) {
     props.layout = aboutLayoutFromComponentId(componentId);
+  }
+
+  if (section.styles) {
+    props[FO_STYLES_PROP] = section.styles;
   }
 
   return {
@@ -78,7 +98,7 @@ function puckItemToSection(item: {
   type: string;
   props: Record<string, unknown>;
 }): BlueprintNode {
-  const { id, layout, ...rest } = item.props;
+  const { id, layout, [FO_STYLES_PROP]: foStyles, ...rest } = item.props;
   const puckType = item.type as PuckSectionType;
 
   let component = PUCK_TO_COMPONENT[puckType] ?? item.type;
@@ -92,16 +112,18 @@ function puckItemToSection(item: {
   }
 
   const props: Record<string, unknown> = { ...rest };
-  // layout is encoded in component id for About — keep out of props
   if (puckType === 'About') {
     delete props.layout;
   }
+
+  const styles = asNodeStyles(foStyles);
 
   return {
     id: typeof id === 'string' ? id : `${item.type}-${crypto.randomUUID()}`,
     type: 'section',
     component,
     props,
+    ...(styles ? { styles } : {}),
   };
 }
 

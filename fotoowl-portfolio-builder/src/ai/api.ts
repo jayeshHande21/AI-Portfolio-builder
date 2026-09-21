@@ -1,17 +1,19 @@
 /**
- * Frontend ↔ backend AI API client.
+ * Frontend ↔ Section AI API client.
  * LLM credentials stay on the server — never in the React client.
  *
  * Flow:
- * 1. If `VITE_SECTION_AI_URL` is set, POST there
- * 2. Otherwise use the local Section AI planner (architecture POC)
+ * 1. POST /api/ai/section (Vite middleware → OpenAI-compatible LLM)
+ * 2. If LLM is not configured (501), fall back to local keyword planner
+ * 3. If LLM is configured but fails, surface the error (no silent keyword fallback)
  */
 import type { BlueprintNode, PortfolioBlueprint } from '../blueprint';
 import { planSectionPatches } from './section';
 import type { SectionAiRequest, SectionAiResult } from './types';
 
 const SECTION_AI_ENDPOINT =
-  (import.meta.env.VITE_SECTION_AI_URL as string | undefined)?.trim() || '';
+  (import.meta.env.VITE_SECTION_AI_URL as string | undefined)?.trim() ||
+  '/api/ai/section';
 
 function buildRequest(
   blueprint: PortfolioBlueprint,
@@ -38,11 +40,7 @@ function buildRequest(
 
 async function requestRemoteSectionAi(
   payload: SectionAiRequest,
-): Promise<SectionAiResult | null> {
-  if (!SECTION_AI_ENDPOINT) {
-    return null;
-  }
-
+): Promise<{ result: SectionAiResult | null; allowLocalFallback: boolean }> {
   try {
     const response = await fetch(SECTION_AI_ENDPOINT, {
       method: 'POST',
@@ -50,30 +48,37 @@ async function requestRemoteSectionAi(
       body: JSON.stringify(payload),
     });
 
-    if (response.status === 404) {
-      return null;
+    // No route / not configured → local planner.
+    if (response.status === 404 || response.status === 501) {
+      return { result: null, allowLocalFallback: true };
     }
 
-    if (!response.ok) {
-      const message = await response.text();
-      return {
-        ok: false,
-        error: message || `Section AI failed (${response.status})`,
-        source: 'remote',
-      };
-    }
+    const data = (await response.json()) as SectionAiResult & {
+      fallback?: boolean;
+    };
 
-    const data = (await response.json()) as SectionAiResult;
     if (!data || typeof data !== 'object' || !('ok' in data)) {
       return {
-        ok: false,
-        error: 'Invalid Section AI response shape',
-        source: 'remote',
+        result: {
+          ok: false,
+          error: 'Invalid Section AI response shape',
+          source: 'remote',
+        },
+        allowLocalFallback: false,
       };
     }
-    return { ...data, source: 'remote' };
+
+    if (data.fallback) {
+      return { result: null, allowLocalFallback: true };
+    }
+
+    return {
+      result: { ...data, source: 'remote' },
+      allowLocalFallback: false,
+    };
   } catch {
-    return null;
+    // Dev server restart / offline — local fallback.
+    return { result: null, allowLocalFallback: true };
   }
 }
 
@@ -97,9 +102,17 @@ export async function runSectionAi(
   }
 
   const remote = await requestRemoteSectionAi(request as SectionAiRequest);
-  if (remote) {
-    return remote;
+  if (remote.result) {
+    return remote.result;
   }
 
-  return planSectionPatches(blueprint, sectionId, trimmed);
+  if (remote.allowLocalFallback) {
+    return planSectionPatches(blueprint, sectionId, trimmed);
+  }
+
+  return {
+    ok: false,
+    error: 'Section AI request failed',
+    source: 'remote',
+  };
 }

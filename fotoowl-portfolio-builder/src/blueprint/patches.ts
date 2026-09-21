@@ -99,6 +99,19 @@ function applyUpdate(
   if (!location) return fail(`Node "${patch.targetId}" not found`);
 
   const { changes } = patch;
+  const nextStyles =
+    changes.styles !== undefined
+      ? {
+          ...location.node.styles,
+          ...(changes.styles as Record<string, unknown>),
+          typography: {
+            ...location.node.styles?.typography,
+            ...((changes.styles as { typography?: Record<string, unknown> })
+              .typography ?? {}),
+          },
+        }
+      : location.node.styles;
+
   const updated: BlueprintNode = {
     ...location.node,
     ...changes,
@@ -107,6 +120,7 @@ function applyUpdate(
       changes.props !== undefined
         ? { ...location.node.props, ...changes.props }
         : location.node.props,
+    styles: nextStyles as BlueprintNode['styles'],
     children: location.node.children,
   };
 
