@@ -1,7 +1,8 @@
+import type { ReactNode } from 'react';
+
 /**
- * Canvas iframe / isolation frame.
- * Keeps the editable portfolio preview separate from the editor chrome.
+ * Canvas shell — isolates editor chrome from the portfolio preview surface.
  */
-export function CanvasFrame() {
-  return null;
+export function CanvasFrame({ children }: { children: ReactNode }) {
+  return <div className="fo-canvas">{children}</div>;
 }

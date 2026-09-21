@@ -1,2 +1,2 @@
-/** Gallery section family — Grid / Masonry / Editorial / Collage (later). */
-export {};
+export { GalleryMasonry } from './GalleryMasonry';
+export type { GalleryImage, GalleryMasonryProps } from './GalleryMasonry';

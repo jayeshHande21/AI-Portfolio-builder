@@ -1,2 +1,2 @@
-/** About section family — Image Left / Image Right / Centered (later). */
-export {};
+export { AboutSection } from './AboutSection';
+export type { AboutLayout, AboutSectionProps } from './AboutSection';

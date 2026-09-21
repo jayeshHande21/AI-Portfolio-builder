@@ -11,3 +11,7 @@ export function validateBlueprint(data: unknown): PortfolioBlueprint {
 export function isValidBlueprint(data: unknown): boolean {
   return portfolioBlueprintSchema.safeParse(data).success;
 }
+
+export function safeParseBlueprint(data: unknown) {
+  return portfolioBlueprintSchema.safeParse(data);
+}

@@ -1,0 +1,239 @@
+/* Portfolio section styles — mirrored into the Puck preview iframe via syncHostStyles */
+
+.fo-hero {
+  position: relative;
+  min-height: 78vh;
+  display: grid;
+  place-items: end stretch;
+  color: #f7f4ee;
+  background: #1a1f24;
+  overflow: hidden;
+}
+
+.fo-hero__media {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(12, 16, 20, 0.15), rgba(12, 16, 20, 0.72)),
+    var(--hero-image, linear-gradient(135deg, #2c3640, #101418)) center / cover
+      no-repeat;
+  transform: scale(1.02);
+  animation: fo-hero-drift 12s ease-in-out infinite alternate;
+}
+
+.fo-hero__content {
+  position: relative;
+  z-index: 1;
+  max-width: 40rem;
+  padding: clamp(2rem, 6vw, 4.5rem);
+}
+
+.fo-hero__eyebrow {
+  margin: 0 0 0.75rem;
+  font-family: var(--fo-font-body, 'Source Sans 3', sans-serif);
+  font-size: 0.78rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  opacity: 0.82;
+}
+
+.fo-hero__title {
+  margin: 0;
+  font-family: var(--fo-font-display, Syne, sans-serif);
+  font-size: clamp(2.4rem, 6vw, 4.2rem);
+  font-weight: 700;
+  line-height: 1.02;
+  letter-spacing: -0.03em;
+  animation: fo-rise 700ms ease both;
+}
+
+.fo-hero__subtitle {
+  margin: 1rem 0 0;
+  max-width: 32rem;
+  font-size: 1.05rem;
+  line-height: 1.55;
+  opacity: 0.9;
+  animation: fo-rise 700ms ease 80ms both;
+}
+
+.fo-hero__cta {
+  margin-top: 1.5rem;
+  padding: 0.8rem 1.2rem;
+  border: 1px solid rgba(247, 244, 238, 0.45);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  animation: fo-rise 700ms ease 140ms both;
+}
+
+.fo-about {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(1.5rem, 4vw, 3.5rem);
+  align-items: center;
+  padding: clamp(2.5rem, 7vw, 5rem) clamp(1.5rem, 5vw, 4rem);
+  background: #f3f1ec;
+  color: #171b1f;
+}
+
+.fo-about--image_right {
+  direction: rtl;
+}
+
+.fo-about--image_right > * {
+  direction: ltr;
+}
+
+.fo-about__image,
+.fo-about__placeholder {
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  display: block;
+  background: linear-gradient(145deg, #d9d2c5, #b7c3c2);
+}
+
+.fo-about__title {
+  margin: 0;
+  font-family: var(--fo-font-display, Syne, sans-serif);
+  font-size: clamp(1.8rem, 3.5vw, 2.6rem);
+  letter-spacing: -0.02em;
+}
+
+.fo-about__body {
+  margin: 1rem 0 0;
+  font-size: 1.05rem;
+  line-height: 1.65;
+  color: #3a424a;
+}
+
+.fo-about__cta {
+  margin-top: 1.5rem;
+  padding: 0.75rem 1.1rem;
+  border: none;
+  background: #0f6e6a;
+  color: #f5fffe;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.fo-gallery {
+  padding: clamp(2.5rem, 7vw, 5rem) clamp(1.5rem, 5vw, 4rem);
+  background: #ebe7df;
+  color: #171b1f;
+}
+
+.fo-gallery__title {
+  margin: 0 0 1.5rem;
+  font-family: var(--fo-font-display, Syne, sans-serif);
+  font-size: clamp(1.6rem, 3vw, 2.2rem);
+}
+
+.fo-gallery__grid {
+  columns: 3 220px;
+  column-gap: 0.85rem;
+}
+
+.fo-gallery__item {
+  break-inside: avoid;
+  margin: 0 0 0.85rem;
+  overflow: hidden;
+}
+
+.fo-gallery__item img {
+  width: 100%;
+  display: block;
+  object-fit: cover;
+  transition: transform 400ms ease;
+}
+
+.fo-gallery__item:hover img {
+  transform: scale(1.03);
+}
+
+.fo-gallery__item--1 img {
+  aspect-ratio: 4 / 5;
+}
+
+.fo-gallery__item--2 img {
+  aspect-ratio: 1 / 1;
+}
+
+.fo-gallery__item--3 img {
+  aspect-ratio: 5 / 4;
+}
+
+.fo-gallery__empty {
+  padding: 2rem;
+  border: 1px dashed #9aa3ab;
+  color: #5b656e;
+}
+
+.fo-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 2.5rem clamp(1.5rem, 5vw, 4rem);
+  background: #14181c;
+  color: #e8e6e1;
+}
+
+.fo-footer__name {
+  margin: 0;
+  font-family: var(--fo-font-display, Syne, sans-serif);
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.fo-footer__tagline,
+.fo-footer__copy {
+  margin: 0.35rem 0 0;
+  color: #9aa3ab;
+  font-size: 0.92rem;
+}
+
+.fo-footer__email {
+  color: #c8ebe8;
+  text-decoration: none;
+}
+
+.fo-footer__email:hover {
+  text-decoration: underline;
+}
+
+@keyframes fo-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fo-hero-drift {
+  from {
+    transform: scale(1.02) translate3d(0, 0, 0);
+  }
+  to {
+    transform: scale(1.06) translate3d(-1.5%, -1%, 0);
+  }
+}
+
+@media (max-width: 800px) {
+  .fo-about,
+  .fo-about--image_right {
+    grid-template-columns: 1fr;
+    direction: ltr;
+  }
+
+  .fo-gallery__grid {
+    columns: 2 140px;
+  }
+}

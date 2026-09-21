@@ -1,4 +1,196 @@
-/**
- * Shared editor / canvas styles.
- * No Tailwind or UI framework in the initial setup — plain CSS only for now.
- */
+:root {
+  --fo-ink: #14181c;
+  --fo-ink-soft: #2a323a;
+  --fo-paper: #f3f1ec;
+  --fo-paper-deep: #e7e2d8;
+  --fo-accent: #0f6e6a;
+  --fo-accent-soft: #c8ebe8;
+  --fo-chrome: #0d1114;
+  --fo-chrome-elevated: #171d22;
+  --fo-chrome-line: rgba(243, 241, 236, 0.08);
+  --fo-chrome-text: #e8e6e1;
+  --fo-chrome-muted: #9aa3ab;
+  --fo-font-display: 'Syne', 'Avenir Next', sans-serif;
+  --fo-font-body: 'Source Sans 3', 'Segoe UI', sans-serif;
+  --fo-font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+  height: 100%;
+}
+
+body {
+  font-family: var(--fo-font-body);
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(15, 110, 106, 0.18), transparent 55%),
+    radial-gradient(900px 500px at 100% 0%, rgba(232, 230, 225, 0.06), transparent 50%),
+    var(--fo-chrome);
+  color: var(--fo-chrome-text);
+}
+
+.fo-app {
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.fo-canvas {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.fo-canvas__puck {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.fo-inspector {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  width: 280px;
+  flex-shrink: 0;
+  padding: 1.25rem 1.1rem;
+  border-right: 1px solid var(--fo-chrome-line);
+  background: linear-gradient(180deg, var(--fo-chrome-elevated), var(--fo-chrome));
+  overflow: auto;
+  z-index: 2;
+}
+
+.fo-inspector__header {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.fo-inspector__eyebrow {
+  margin: 0;
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--fo-chrome-muted);
+}
+
+.fo-inspector__title {
+  margin: 0.15rem 0 0;
+  font-family: var(--fo-font-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.fo-inspector__block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--fo-chrome-line);
+}
+
+.fo-inspector__block--grow {
+  flex: 1;
+}
+
+.fo-inspector__label {
+  margin: 0;
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fo-chrome-muted);
+}
+
+.fo-inspector__value {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.4;
+  color: var(--fo-chrome-text);
+}
+
+.fo-inspector__value.mono,
+.fo-inspector__item code,
+.fo-inspector__hint code {
+  font-family: var(--fo-font-mono);
+  font-size: 0.78rem;
+}
+
+.fo-inspector__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid rgba(200, 235, 232, 0.35);
+  border-radius: 0.4rem;
+  background: var(--fo-accent);
+  color: #f5fffe;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 160ms ease, background 160ms ease;
+}
+
+.fo-inspector__btn:hover:not(:disabled) {
+  background: #0c5c59;
+  transform: translateY(-1px);
+}
+
+.fo-inspector__btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.fo-inspector__hint {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--fo-chrome-muted);
+}
+
+.fo-inspector__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.fo-inspector__item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.55rem 0.6rem;
+  border-radius: 0.35rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid transparent;
+}
+
+.fo-inspector__item.is-active {
+  border-color: rgba(15, 110, 106, 0.55);
+  background: rgba(15, 110, 106, 0.16);
+}
+
+.fo-inspector__item span {
+  font-size: 0.85rem;
+}
+
+.fo-inspector__item code {
+  color: var(--fo-accent-soft);
+}

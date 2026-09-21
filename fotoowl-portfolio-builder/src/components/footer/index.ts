@@ -1,2 +1,2 @@
-/** Footer section family — Minimal / Large / Editorial (later). */
-export {};
+export { FooterMinimal } from './FooterMinimal';
+export type { FooterMinimalProps } from './FooterMinimal';

@@ -1,2 +1,2 @@
-/** Hero section family — Fullscreen / Split / Editorial / Centered (later). */
-export {};
+export { HeroEditorial } from './HeroEditorial';
+export type { HeroEditorialProps } from './HeroEditorial';

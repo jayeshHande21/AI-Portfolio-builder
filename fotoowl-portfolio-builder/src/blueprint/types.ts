@@ -1,6 +1,6 @@
 /**
- * Portfolio Blueprint TypeScript types.
- * Single source of truth for portfolio structure — independent of Puck / AI / S3.
+ * Portfolio Blueprint — single source of truth.
+ * Independent of Puck, AI models, S3, and build infrastructure.
  */
 
 export type NodeId = string;
@@ -15,17 +15,81 @@ export type NodeType =
   | 'button'
   | 'component';
 
-/** Placeholder — full Blueprint node model lands in Phase 2. */
+export type AssetId = string;
+
+export interface Asset {
+  id: AssetId;
+  url: string;
+  alt?: string;
+  width?: number;
+  height?: number;
+}
+
+export interface NodeLayout {
+  display?: 'block' | 'flex' | 'grid';
+  direction?: 'row' | 'column';
+  columns?: number;
+  gap?: string;
+  alignment?: string;
+  width?: string;
+}
+
+export interface NodeStyles {
+  background?: string;
+  color?: string;
+  padding?: string;
+  typography?: {
+    fontFamily?: string;
+    fontSize?: string;
+    fontWeight?: string | number;
+    letterSpacing?: string;
+  };
+}
+
+export interface NodeAnimation {
+  type?: string;
+  duration?: string;
+  trigger?: string;
+}
+
+export interface ResponsiveOverrides {
+  tablet?: {
+    layout?: Partial<NodeLayout>;
+    styles?: Partial<NodeStyles>;
+  };
+  mobile?: {
+    layout?: Partial<NodeLayout>;
+    styles?: Partial<NodeStyles>;
+  };
+}
+
 export interface BlueprintNode {
   id: NodeId;
   type: NodeType;
+  /** Registry key, e.g. hero.editorial, about.image_left */
   component?: string;
   props?: Record<string, unknown>;
+  layout?: NodeLayout;
+  styles?: NodeStyles;
+  animation?: NodeAnimation;
+  responsive?: ResponsiveOverrides;
   children?: BlueprintNode[];
+  metadata?: Record<string, unknown>;
 }
 
 export interface PortfolioBlueprint {
   id: string;
   name: string;
+  /** Theme this portfolio was cloned from (never mutate the theme itself). */
+  themeId?: string;
+  assets: Record<AssetId, Asset>;
   sections: BlueprintNode[];
 }
+
+/** Stable section component ids used in V1 registry. */
+export type SectionComponentId =
+  | 'hero.editorial'
+  | 'about.image_left'
+  | 'about.image_right'
+  | 'gallery.masonry'
+  | 'footer.minimal';
