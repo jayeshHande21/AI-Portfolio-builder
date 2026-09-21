@@ -17,7 +17,7 @@ const SUGGESTIONS = [
 
 /**
  * Section AI panel — prompt → structured patches → Blueprint.
- * Requires a selected section. No LLM keys in the client.
+ * Docked on the right. Requires a selected section.
  */
 export function SectionAiPanel() {
   const selectedNodeId = useEditorStore((s) => s.selectedNodeId);
@@ -29,7 +29,7 @@ export function SectionAiPanel() {
     {
       id: 'sys',
       role: 'system',
-      text: 'Select a section, then describe the change. Section AI returns Blueprint patches only.',
+      text: 'Select a section in the canvas, then describe the change. Section AI returns Blueprint patches only.',
     },
   ]);
 
@@ -66,9 +66,9 @@ export function SectionAiPanel() {
   return (
     <section className="fo-section-ai" aria-label="Section AI">
       <header className="fo-section-ai__header">
-        <Sparkles size={14} aria-hidden />
+        <Sparkles size={16} aria-hidden />
         <div>
-          <p className="fo-inspector__label">Section AI</p>
+          <p className="fo-section-ai__eyebrow">Section AI</p>
           <p className="fo-section-ai__target">
             {selected
               ? `${selected.id} · ${selected.component ?? selected.type}`
@@ -109,7 +109,7 @@ export function SectionAiPanel() {
         <textarea
           id="section-ai-prompt"
           className="fo-section-ai__input"
-          rows={3}
+          rows={4}
           value={prompt}
           disabled={!selected || loading}
           placeholder={
@@ -121,7 +121,7 @@ export function SectionAiPanel() {
         />
         <button
           type="submit"
-          className="fo-inspector__btn"
+          className="fo-section-ai__submit"
           disabled={!selected || loading || !prompt.trim()}
         >
           {loading ? 'Planning…' : 'Apply with AI'}
