@@ -224,6 +224,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       return false;
     }
     const before = get().blueprint;
+    const selectedNodeId = get().selectedNodeId;
     const result = applyPatches(before, patches);
     if (!result.ok) {
       set({ lastPatchError: result.error });
@@ -236,6 +237,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       label,
       patch: patches[0],
       remount: true,
+      // Keep the edited section selected across Puck remount.
+      selectedNodeId,
     });
     return true;
   },
@@ -248,7 +251,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       return { ok: false, error };
     }
 
-    set({ sectionAiLoading: true, lastPatchError: null });
+    set({ sectionAiLoading: true, lastPatchError: null, sectionAiOpen: true });
     try {
       const result = await runSectionAi(blueprint, selectedNodeId, prompt);
       if (!result.ok) {
@@ -260,7 +263,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         result.patches,
         `Section AI: ${result.summary}`,
       );
-      set({ sectionAiLoading: false });
+      // Re-assert selection after remount clears Puck's itemSelector.
+      set({
+        sectionAiLoading: false,
+        selectedNodeId,
+        sectionAiOpen: true,
+      });
       if (!applied) {
         return {
           ok: false,

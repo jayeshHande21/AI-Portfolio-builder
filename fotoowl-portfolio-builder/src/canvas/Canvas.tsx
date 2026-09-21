@@ -55,6 +55,15 @@ function selectedIdFromPuckData(
   return typeof id === 'string' ? id : null;
 }
 
+function itemSelectorForNodeId(
+  data: Data,
+  nodeId: string | null,
+): { index: number } | undefined {
+  if (!nodeId) return undefined;
+  const index = data.content.findIndex((item) => item.props.id === nodeId);
+  return index >= 0 ? { index } : undefined;
+}
+
 function useHistoryHotkeys() {
   const undo = useEditorStore((s) => s.undo);
   const redo = useEditorStore((s) => s.redo);
@@ -96,11 +105,13 @@ export function Canvas() {
   const editorEpoch = useEditorStore((s) => s.editorEpoch);
   const viewportId = useEditorStore((s) => s.viewportId);
   const sectionAiOpen = useEditorStore((s) => s.sectionAiOpen);
+  const selectedNodeId = useEditorStore((s) => s.selectedNodeId);
   const syncFromPuck = useEditorStore((s) => s.syncFromPuck);
   const selectNode = useEditorStore((s) => s.selectNode);
   const syncViewportFromWidth = useEditorStore((s) => s.syncViewportFromWidth);
   const lastPatchError = useEditorStore((s) => s.lastPatchError);
   const puckData = selectPuckData(blueprint);
+  const itemSelector = itemSelectorForNodeId(puckData, selectedNodeId);
 
   useHistoryHotkeys();
 
@@ -120,6 +131,7 @@ export function Canvas() {
               iframe={{ enabled: true }}
               ui={{
                 viewports: toPuckViewportUi(viewportId),
+                ...(itemSelector ? { itemSelector } : {}),
               }}
               overrides={{
                 actionBar: SectionAiActionBar,
@@ -127,12 +139,17 @@ export function Canvas() {
               onChange={syncFromPuck}
               onPublish={syncFromPuck}
               onAction={(_action, appState) => {
-                selectNode(
-                  selectedIdFromPuckData(
-                    appState.data,
-                    appState.ui.itemSelector,
-                  ),
+                const id = selectedIdFromPuckData(
+                  appState.data,
+                  appState.ui.itemSelector,
                 );
+                // Remount after AI clears Puck selection briefly — keep store
+                // selection while the Section AI rail is open.
+                if (id) {
+                  selectNode(id);
+                } else if (!useEditorStore.getState().sectionAiOpen) {
+                  selectNode(null);
+                }
                 syncViewportFromWidth(appState.ui.viewports.current.width);
               }}
               viewports={toPuckViewports()}

@@ -3,14 +3,15 @@
  * LLM credentials stay on the server — never in the React client.
  *
  * Flow:
- * 1. Try remote `/api/ai/section` when available
- * 2. Fall back to local Section AI planner (architecture POC)
+ * 1. If `VITE_SECTION_AI_URL` is set, POST there
+ * 2. Otherwise use the local Section AI planner (architecture POC)
  */
 import type { BlueprintNode, PortfolioBlueprint } from '../blueprint';
 import { planSectionPatches } from './section';
 import type { SectionAiRequest, SectionAiResult } from './types';
 
-const SECTION_AI_ENDPOINT = '/api/ai/section';
+const SECTION_AI_ENDPOINT =
+  (import.meta.env.VITE_SECTION_AI_URL as string | undefined)?.trim() || '';
 
 function buildRequest(
   blueprint: PortfolioBlueprint,
@@ -38,6 +39,10 @@ function buildRequest(
 async function requestRemoteSectionAi(
   payload: SectionAiRequest,
 ): Promise<SectionAiResult | null> {
+  if (!SECTION_AI_ENDPOINT) {
+    return null;
+  }
+
   try {
     const response = await fetch(SECTION_AI_ENDPOINT, {
       method: 'POST',
@@ -45,7 +50,6 @@ async function requestRemoteSectionAi(
       body: JSON.stringify(payload),
     });
 
-    // No backend yet — treat missing route as “use local planner”.
     if (response.status === 404) {
       return null;
     }
@@ -69,7 +73,6 @@ async function requestRemoteSectionAi(
     }
     return { ...data, source: 'remote' };
   } catch {
-    // Network / no server — local fallback.
     return null;
   }
 }

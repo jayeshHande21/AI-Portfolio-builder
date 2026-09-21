@@ -39,6 +39,25 @@ describe('Section AI planner', () => {
     expect(String(about?.props?.body)).toMatch(/atmosphere|soft light/i);
   });
 
+  it('composes premium tone and image side in one prompt', () => {
+    const bp = sample();
+    const result = planSectionPatches(
+      bp,
+      'about_01',
+      'Make this About section more premium and put the image on the left',
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.patches.length).toBeGreaterThanOrEqual(1);
+
+    const applied = applyPatches(bp, result.patches);
+    expect(applied.ok).toBe(true);
+    if (!applied.ok) return;
+    const about = applied.blueprint.sections.find((s) => s.id === 'about_01');
+    expect(about?.component).toBe('about.image_left');
+    expect(String(about?.props?.body)).toMatch(/atmosphere|soft light/i);
+  });
+
   it('replaces About with a new structured composition', () => {
     const bp = sample();
     const result = planSectionPatches(

@@ -149,7 +149,8 @@ body {
   border-left: 1px solid var(--fo-chrome-line);
   background: linear-gradient(180deg, var(--fo-chrome-elevated), var(--fo-chrome));
   overflow: hidden;
-  z-index: 2;
+  z-index: 20;
+  position: relative;
 }
 
 .fo-ai-rail__error {

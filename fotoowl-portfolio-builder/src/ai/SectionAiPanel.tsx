@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Sparkles, X } from 'lucide-react';
 import { useEditorStore } from '../editor/state';
 
@@ -8,12 +8,38 @@ type ChatMessage = {
   text: string;
 };
 
-const SUGGESTIONS = [
-  'Make this more premium',
-  'Put the image on the right',
-  'Create a completely new About section',
-  'Title: Stories in Soft Light',
-];
+function suggestionsForSection(component: string | undefined): string[] {
+  if (
+    component === 'about.image_left' ||
+    component === 'about.image_right'
+  ) {
+    return [
+      'Make this more premium',
+      'Put the image on the right',
+      'Put the image on the left',
+      'Create a completely new About section',
+      'Title: Stories in Soft Light',
+    ];
+  }
+  if (component === 'hero.editorial') {
+    return [
+      'Make this more premium',
+      'Title: Quiet Frames',
+      'Create a completely new Hero',
+      'CTA: View the collection',
+    ];
+  }
+  if (component === 'gallery.masonry') {
+    return ['Make this more premium', 'Title: Selected Work'];
+  }
+  if (component === 'footer.minimal') {
+    return ['Make this more premium'];
+  }
+  return [
+    'Make this more premium',
+    'Title: Stories in Soft Light',
+  ];
+}
 
 /**
  * Section AI panel — prompt → structured patches → Blueprint.
@@ -36,6 +62,10 @@ export function SectionAiPanel() {
   ]);
 
   const selected = blueprint.sections.find((s) => s.id === selectedNodeId);
+  const suggestions = useMemo(
+    () => suggestionsForSection(selected?.component),
+    [selected?.component],
+  );
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -92,7 +122,7 @@ export function SectionAiPanel() {
       </header>
 
       <div className="fo-section-ai__suggestions">
-        {SUGGESTIONS.map((item) => (
+        {suggestions.map((item) => (
           <button
             key={item}
             type="button"

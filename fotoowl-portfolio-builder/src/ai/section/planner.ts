@@ -1,9 +1,11 @@
 /**
  * Local Section AI planner — prompt → structured Blueprint patches.
  *
- * This proves the architecture without putting LLM keys in the client.
- * When a backend is available, `api.ts` prefers the remote endpoint and
- * falls back here.
+ * Architecture POC without LLM keys in the client.
+ * `api.ts` prefers a remote endpoint when configured, else uses this planner.
+ *
+ * Supports multi-intent prompts (e.g. premium tone + image side + title)
+ * by composing multiple section-scoped patches.
  */
 import type { BlueprintNode, BlueprintPatch, PortfolioBlueprint } from '../../blueprint';
 import {
@@ -74,10 +76,10 @@ function rebuildAboutSection(
     type: 'section',
     component: layout === 'image_right' ? 'about.image_right' : 'about.image_left',
     props: {
-      ...premiumAboutCopy(props),
+      ...props,
       title: 'About the photographer',
       body:
-        'A completely refreshed About — large portrait energy, a clear story, and a direct CTA. Built from supported components, not new React code.',
+        'A completely refreshed About — large portrait energy, a clear story, selected awards, and a direct CTA. Built from supported components, not new React code.',
       ctaLabel: 'Book a discovery call',
       imageUrl: props.imageUrl,
       imageAlt: text(props.imageAlt) || 'Photographer portrait',
@@ -85,8 +87,50 @@ function rebuildAboutSection(
   };
 }
 
+function rebuildHeroSection(section: BlueprintNode): BlueprintNode {
+  const props = asProps(section);
+  return {
+    id: section.id,
+    type: 'section',
+    component: 'hero.editorial',
+    props: {
+      ...props,
+      eyebrow: 'Newly composed',
+      title: 'A Fresh Editorial Opening',
+      subtitle:
+        'Rebuilt Hero structure with stronger hierarchy, quieter type, and a clearer invitation into the work.',
+      ctaLabel: 'Explore the portfolio',
+      imageUrl: props.imageUrl,
+      imageAlt: text(props.imageAlt) || 'Featured photograph',
+    },
+  };
+}
+
+function extractQuotedOrAfter(
+  promptRaw: string,
+  keys: string[],
+): string | null {
+  for (const key of keys) {
+    const pattern = new RegExp(
+      `(?:${key})\\s*(?:to|as|:)?\\s*[“"']([^”"']+)[”"']`,
+      'i',
+    );
+    const quoted = promptRaw.match(pattern);
+    if (quoted?.[1]?.trim()) return quoted[1].trim();
+
+    const plain = promptRaw.match(
+      new RegExp(`(?:${key})\\s*(?:to|as|:)\\s*(.+)$`, 'i'),
+    );
+    if (plain?.[1]?.trim()) {
+      return plain[1].trim().replace(/[.!]+$/, '');
+    }
+  }
+  return null;
+}
+
 /**
  * Plan section-scoped patches from a natural-language prompt.
+ * Multiple intents in one prompt compose into one patch list.
  */
 export function planSectionPatches(
   blueprint: PortfolioBlueprint,
@@ -103,220 +147,221 @@ export function planSectionPatches(
     return { ok: false, error: 'Prompt is empty', source: 'local' };
   }
 
-  const props = asProps(section);
+  let props = asProps(section);
   const patches: BlueprintPatch[] = [];
-  let summary = '';
+  const summaries: string[] = [];
+  let workingComponent = section.component;
 
-  // --- Layout: About image side ---
-  if (
-    isAbout(section) &&
-    includesAny(prompt, [
-      'image on the right',
-      'image right',
-      'photo on the right',
-      'picture on the right',
-      'move image right',
-      'image to the right',
-    ])
-  ) {
-    patches.push(
-      updateNodePatch(sectionId, { component: 'about.image_right' }),
-    );
-    summary = 'Moved About image to the right.';
-  } else if (
-    isAbout(section) &&
-    includesAny(prompt, [
-      'image on the left',
-      'image left',
-      'photo on the left',
-      'picture on the left',
-      'move image left',
-      'image to the left',
-    ])
-  ) {
-    patches.push(
-      updateNodePatch(sectionId, { component: 'about.image_left' }),
-    );
-    summary = 'Moved About image to the left.';
-  } else if (
-    isAbout(section) &&
-    includesAny(prompt, ['flip', 'swap image', 'switch image', 'other side'])
-  ) {
-    const next =
-      section.component === 'about.image_left'
-        ? 'about.image_right'
-        : 'about.image_left';
-    patches.push(updateNodePatch(sectionId, { component: next }));
-    summary = `Flipped About layout to ${next}.`;
-  }
+  const pushUpdate = (
+    changes: Parameters<typeof updateNodePatch>[1],
+    summary: string,
+  ) => {
+    patches.push(updateNodePatch(sectionId, changes));
+    summaries.push(summary);
+    if (changes.component) {
+      workingComponent = changes.component;
+    }
+    if (changes.props) {
+      props = { ...props, ...changes.props };
+    }
+  };
 
-  // --- Replace / rebuild About ---
-  else if (
-    isAbout(section) &&
-    includesAny(prompt, [
-      'completely new about',
-      'new about section',
-      'rebuild about',
-      'replace about',
-      'recreate about',
-    ])
-  ) {
+  // --- Replace / rebuild ---
+  const wantsRebuild = includesAny(prompt, [
+    'completely new',
+    'rebuild',
+    'recreate',
+    'replace this',
+    'replace the section',
+    'new about section',
+    'new hero',
+  ]);
+
+  if (wantsRebuild && isAbout(section)) {
     const layout = includesAny(prompt, ['right'])
       ? 'image_right'
-      : 'image_left';
-    patches.push(
-      replaceNodePatch(sectionId, rebuildAboutSection(section, layout)),
-    );
-    summary = 'Replaced About with a new structured composition.';
+      : includesAny(prompt, ['left'])
+        ? 'image_left'
+        : section.component === 'about.image_right'
+          ? 'image_right'
+          : 'image_left';
+    const next = rebuildAboutSection(section, layout);
+    patches.push(replaceNodePatch(sectionId, next));
+    summaries.push('Replaced About with a new structured composition');
+    props = asProps(next);
+    workingComponent = next.component;
+  } else if (wantsRebuild && isHero(section)) {
+    const next = rebuildHeroSection(section);
+    patches.push(replaceNodePatch(sectionId, next));
+    summaries.push('Replaced Hero with a new structured composition');
+    props = asProps(next);
+    workingComponent = next.component;
+  }
+
+  // --- Layout: About image side ---
+  if (isAbout({ ...section, component: workingComponent })) {
+    if (
+      includesAny(prompt, [
+        'image on the right',
+        'image right',
+        'photo on the right',
+        'picture on the right',
+        'move image right',
+        'image to the right',
+        'put the image on the right',
+      ])
+    ) {
+      if (workingComponent !== 'about.image_right') {
+        pushUpdate(
+          { component: 'about.image_right' },
+          'Moved About image to the right',
+        );
+      }
+    } else if (
+      includesAny(prompt, [
+        'image on the left',
+        'image left',
+        'photo on the left',
+        'picture on the left',
+        'move image left',
+        'image to the left',
+        'put the image on the left',
+      ])
+    ) {
+      if (workingComponent !== 'about.image_left') {
+        pushUpdate(
+          { component: 'about.image_left' },
+          'Moved About image to the left',
+        );
+      }
+    } else if (
+      includesAny(prompt, ['flip', 'swap image', 'switch image', 'other side'])
+    ) {
+      const next =
+        workingComponent === 'about.image_left'
+          ? 'about.image_right'
+          : 'about.image_left';
+      pushUpdate({ component: next }, `Flipped About layout to ${next}`);
+    }
   }
 
   // --- Premium tone ---
-  else if (includesAny(prompt, ['premium', 'luxury', 'elegant', 'more refined'])) {
-    if (isAbout(section)) {
-      patches.push(
-        updateNodePatch(sectionId, { props: premiumAboutCopy(props) }),
+  if (includesAny(prompt, ['premium', 'luxury', 'elegant', 'more refined'])) {
+    if (isAbout({ ...section, component: workingComponent })) {
+      pushUpdate(
+        { props: premiumAboutCopy(props) },
+        'Updated About copy toward a more premium tone',
       );
-      if (
-        includesAny(prompt, ['left']) &&
-        section.component !== 'about.image_left'
-      ) {
-        patches.push(
-          updateNodePatch(sectionId, { component: 'about.image_left' }),
-        );
-      }
-      if (
-        includesAny(prompt, ['right']) &&
-        section.component !== 'about.image_right'
-      ) {
-        patches.push(
-          updateNodePatch(sectionId, { component: 'about.image_right' }),
-        );
-      }
-      summary = 'Updated About copy toward a more premium tone.';
     } else if (isHero(section)) {
-      patches.push(
-        updateNodePatch(sectionId, { props: premiumHeroCopy(props) }),
+      pushUpdate(
+        { props: premiumHeroCopy(props) },
+        'Updated Hero copy toward a more premium tone',
       );
-      summary = 'Updated Hero copy toward a more premium tone.';
     } else if (isGallery(section)) {
-      patches.push(
-        updateNodePatch(sectionId, {
-          props: {
-            ...props,
-            title: 'Selected commissions',
-          },
-        }),
+      pushUpdate(
+        { props: { ...props, title: 'Selected commissions' } },
+        'Refined Gallery heading',
       );
-      summary = 'Refined Gallery heading.';
     } else if (isFooter(section)) {
-      patches.push(
-        updateNodePatch(sectionId, {
-          props: {
-            ...props,
-            tagline: 'Fine art photography',
-          },
-        }),
+      pushUpdate(
+        { props: { ...props, tagline: 'Fine art photography' } },
+        'Refined Footer tagline',
       );
-      summary = 'Refined Footer tagline.';
     }
   }
 
-  // --- Title / headline updates ---
-  else if (
-    includesAny(prompt, ['title', 'headline', 'heading']) &&
-    includesAny(prompt, ['to ', 'as ', ':', 'rename', 'change', 'set '])
-  ) {
-    const match =
-      promptRaw.match(
-        /(?:title|headline|heading)\s*(?:to|as|:)\s*[“"']?([^”"']+)[”"']?/i,
-      ) ??
-      promptRaw.match(/rename\s+(?:the\s+)?(?:title|headline)\s+to\s+(.+)/i);
-    const nextTitle = match?.[1]?.trim();
+  // --- Explicit title ---
+  if (includesAny(prompt, ['title', 'headline', 'heading'])) {
+    const nextTitle = extractQuotedOrAfter(promptRaw, [
+      'title',
+      'headline',
+      'heading',
+    ]);
     if (nextTitle) {
-      const key = isHero(section) ? 'title' : 'title';
-      patches.push(
-        updateNodePatch(sectionId, {
-          props: { ...props, [key]: nextTitle },
-        }),
-      );
-      summary = `Set title to “${nextTitle}”.`;
+      pushUpdate({ props: { ...props, title: nextTitle } }, `Set title to “${nextTitle}”`);
     }
   }
 
-  // --- Shorter / longer body ---
-  else if (includesAny(prompt, ['shorter', 'concise', 'brief'])) {
+  // --- Explicit subtitle (hero) ---
+  if (isHero(section) && includesAny(prompt, ['subtitle', 'tagline'])) {
+    const next = extractQuotedOrAfter(promptRaw, ['subtitle', 'tagline']);
+    if (next) {
+      pushUpdate(
+        { props: { ...props, subtitle: next } },
+        `Set subtitle to “${next}”`,
+      );
+    }
+  }
+
+  // --- Body / shorter / longer ---
+  if (includesAny(prompt, ['shorter', 'concise', 'brief'])) {
     const body = text(props.body) || text(props.subtitle);
     if (body) {
       const shortened =
         body.split(/[.!?]/).filter(Boolean)[0]?.trim() + '.' || body.slice(0, 80);
       if (isHero(section)) {
-        patches.push(
-          updateNodePatch(sectionId, {
-            props: { ...props, subtitle: shortened },
-          }),
+        pushUpdate(
+          { props: { ...props, subtitle: shortened } },
+          'Shortened section copy',
         );
       } else {
-        patches.push(
-          updateNodePatch(sectionId, {
-            props: { ...props, body: shortened },
-          }),
+        pushUpdate(
+          { props: { ...props, body: shortened } },
+          'Shortened section copy',
         );
       }
-      summary = 'Shortened section copy.';
     }
   } else if (includesAny(prompt, ['longer', 'expand', 'more detail'])) {
-    if (isAbout(section)) {
-      patches.push(
-        updateNodePatch(sectionId, {
+    if (isAbout({ ...section, component: workingComponent })) {
+      pushUpdate(
+        {
           props: {
             ...props,
             body: `${text(props.body)} Available for destination work and long-form collaborations.`,
           },
-        }),
+        },
+        'Expanded About body copy',
       );
-      summary = 'Expanded About body copy.';
     } else if (isHero(section)) {
-      patches.push(
-        updateNodePatch(sectionId, {
+      pushUpdate(
+        {
           props: {
             ...props,
             subtitle: `${text(props.subtitle)} Crafted with patience and a documentary eye.`,
           },
-        }),
+        },
+        'Expanded Hero subtitle',
       );
-      summary = 'Expanded Hero subtitle.';
     }
   }
 
   // --- CTA ---
-  else if (includesAny(prompt, ['cta', 'button', 'call to action'])) {
-    const match = promptRaw.match(
-      /(?:cta|button|call to action)\s*(?:to|as|:)\s*[“"']?([^”"']+)[”"']?/i,
+  if (includesAny(prompt, ['cta', 'button', 'call to action'])) {
+    const label =
+      extractQuotedOrAfter(promptRaw, [
+        'cta',
+        'button',
+        'call to action',
+        'cta label',
+      ]) || 'Get in touch';
+    pushUpdate(
+      { props: { ...props, ctaLabel: label } },
+      `Updated CTA to “${label}”`,
     );
-    const label = match?.[1]?.trim() || 'Get in touch';
-    patches.push(
-      updateNodePatch(sectionId, {
-        props: {
-          ...props,
-          ctaLabel: label,
-        },
-      }),
-    );
-    summary = `Updated CTA to “${label}”.`;
   }
 
   if (patches.length === 0) {
     return {
       ok: false,
       error:
-        'Could not map that prompt to a section change. Try: “make this more premium”, “image on the right”, “completely new About section”, or “title: My New Title”.',
+        'Could not map that prompt to a section change. Try: “make this more premium”, “put the image on the right”, “create a completely new About section”, or “title: My New Title”.',
       source: 'local',
     };
   }
 
   return {
     ok: true,
-    summary,
+    summary: summaries.join('. ') + '.',
     patches,
     source: 'local',
   };
