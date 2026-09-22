@@ -5,7 +5,6 @@ import {
   selectPuckData,
   useEditorStore,
 } from '../editor/state';
-import { listThemeSummaries } from '../themes';
 import { SectionAiPanel } from '../ai/SectionAiPanel';
 import {
   toPuckViewportUi,
@@ -17,8 +16,7 @@ import { CanvasFrame } from './CanvasFrame';
 
 function EditorToolbar() {
   const blueprint = useEditorStore((s) => s.blueprint);
-  const loadThemeById = useEditorStore((s) => s.loadThemeById);
-  const themes = listThemeSummaries();
+  const openThemePicker = useEditorStore((s) => s.openThemePicker);
 
   return (
     <header className="fo-toolbar" aria-label="Editor toolbar">
@@ -26,21 +24,15 @@ function EditorToolbar() {
         <p className="fo-toolbar__eyebrow">FotoOwl</p>
         <h1 className="fo-toolbar__title">{blueprint.name}</h1>
       </div>
-      <label className="fo-toolbar__theme">
-        <span className="fo-toolbar__theme-label">Theme</span>
-        <select
-          className="fo-toolbar__select"
-          value={blueprint.themeId ?? ''}
-          onChange={(event) => loadThemeById(event.target.value)}
-          aria-label="Select theme"
+      <div className="fo-toolbar__actions">
+        <button
+          type="button"
+          className="fo-toolbar__ghost"
+          onClick={openThemePicker}
         >
-          {themes.map((theme) => (
-            <option key={theme.id} value={theme.id}>
-              {theme.name}
-            </option>
-          ))}
-        </select>
-      </label>
+          Change template
+        </button>
+      </div>
     </header>
   );
 }

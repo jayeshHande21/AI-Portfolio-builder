@@ -45,6 +45,7 @@ import {
 } from '../history';
 import {
   createPortfolioFromTheme,
+  DEFAULT_THEME_ID,
   getDefaultTheme,
   requireTheme,
   type ThemeDefinition,
@@ -71,9 +72,17 @@ function syncCustomRuntime(blueprint: PortfolioBlueprint) {
   registerCustomComponents(blueprint.customComponents);
 }
 
+export type AppPhase = 'picker' | 'editor';
+
 interface EditorState {
   /** Persistent portfolio state — source of truth. */
   blueprint: PortfolioBlueprint;
+  /** First screen is the theme gallery; editor opens after Apply. */
+  appPhase: AppPhase;
+  /** Theme highlighted in the picker (not yet applied). */
+  selectedThemeId: string | null;
+  /** True after the user has entered the editor at least once. */
+  hasEnteredEditor: boolean;
   /** Temporary editor selection (not part of Blueprint). */
   selectedNodeId: string | null;
   /**
@@ -94,6 +103,11 @@ interface EditorState {
   /** Whether the Section AI right rail is open (opened from section action bar). */
   sectionAiOpen: boolean;
 
+  selectThemePreview: (themeId: string) => void;
+  openThemePicker: () => void;
+  returnToEditor: () => void;
+  /** Clone theme into Blueprint and open the editor canvas. */
+  applyThemeAndEnterEditor: (themeId: string) => void;
   /** Load a theme by registry id (clones — never mutates the theme source). */
   loadThemeById: (themeId: string) => void;
   loadTheme: (theme?: ThemeDefinition) => void;
@@ -181,6 +195,9 @@ function commitBlueprintChange(
 
 export const useEditorStore = create<EditorState>((set, get) => ({
   blueprint: loadInitialBlueprint(),
+  appPhase: 'picker',
+  selectedThemeId: DEFAULT_THEME_ID,
+  hasEnteredEditor: false,
   selectedNodeId: null,
   editorEpoch: 0,
   syncLocked: false,
@@ -189,6 +206,32 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   viewportId: DEFAULT_VIEWPORT,
   sectionAiLoading: false,
   sectionAiOpen: false,
+
+  selectThemePreview: (themeId) => {
+    set({ selectedThemeId: themeId });
+  },
+
+  openThemePicker: () => {
+    set({
+      appPhase: 'picker',
+      selectedThemeId: get().blueprint.themeId ?? DEFAULT_THEME_ID,
+      sectionAiOpen: false,
+    });
+  },
+
+  returnToEditor: () => {
+    if (!get().hasEnteredEditor) return;
+    set({ appPhase: 'editor' });
+  },
+
+  applyThemeAndEnterEditor: (themeId) => {
+    get().loadTheme(requireTheme(themeId));
+    set({
+      appPhase: 'editor',
+      selectedThemeId: themeId,
+      hasEnteredEditor: true,
+    });
+  },
 
   loadThemeById: (themeId) => {
     get().loadTheme(requireTheme(themeId));
@@ -206,6 +249,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       history: createEmptyHistory(),
       sectionAiOpen: false,
       sectionAiLoading: false,
+      selectedThemeId: theme.id,
     });
   },
 
