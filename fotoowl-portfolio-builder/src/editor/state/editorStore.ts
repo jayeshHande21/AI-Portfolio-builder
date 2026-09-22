@@ -46,6 +46,7 @@ import {
   undoHistory,
 } from '../history';
 import {
+  createBlankPortfolio,
   createPortfolioFromTheme,
   DEFAULT_THEME_ID,
   getDefaultTheme,
@@ -98,6 +99,11 @@ interface EditorState {
   returnToEditor: () => void;
   /** Clone theme into Blueprint and open the editor canvas. */
   applyThemeAndEnterEditor: (themeId: string) => void;
+  /**
+   * Flow B — blank Blueprint, open editor, open Portfolio AI rail.
+   * Entry point from the theme gallery (“Build from scratch”).
+   */
+  startFromScratchWithAi: () => void;
   /** Load a theme by registry id (clones — never mutates the theme source). */
   loadThemeById: (themeId: string) => void;
   loadTheme: (theme?: ThemeDefinition) => void;
@@ -230,6 +236,26 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set({
       appPhase: 'editor',
       selectedThemeId: themeId,
+      hasEnteredEditor: true,
+    });
+  },
+
+  startFromScratchWithAi: () => {
+    const draft = validateBlueprint(createBlankPortfolio());
+    clearRuntimeCustomComponents();
+    withSyncLock(set);
+    set({
+      blueprint: draft,
+      selectedNodeId: null,
+      editorEpoch: get().editorEpoch + 1,
+      lastPatchError: null,
+      history: createEmptyHistory(),
+      sectionAiOpen: false,
+      sectionAiLoading: false,
+      portfolioAiOpen: true,
+      portfolioAiLoading: false,
+      selectedThemeId: null,
+      appPhase: 'editor',
       hasEnteredEditor: true,
     });
   },

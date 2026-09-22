@@ -100,6 +100,28 @@ describe('Portfolio AI planner', () => {
     expect(result.codeAiJobs?.[0]?.kind).toBe('footer');
   });
 
+  it('updates hero image from gallery photos', () => {
+    const bp = sample();
+    const gallery = bp.sections.find((s) => s.id === 'gallery_01');
+    const first = (gallery?.props?.images as Array<{ url: string; alt: string }>)?.[0];
+    expect(first?.url).toBeTruthy();
+
+    const result = planPortfolioPatches(
+      bp,
+      'Add the photos in the hero section',
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const applied = applyPatches(bp, result.patches);
+    expect(applied.ok).toBe(true);
+    if (!applied.ok) return;
+    expect(
+      applied.blueprint.sections.find((s) => s.id === 'hero_01')?.props
+        ?.imageUrl,
+    ).toBe(first!.url);
+  });
+
   it('rejects empty / unmapped prompts', () => {
     const bp = sample();
     expect(planPortfolioPatches(bp, '   ').ok).toBe(false);

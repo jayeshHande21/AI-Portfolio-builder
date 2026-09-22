@@ -15,6 +15,7 @@ const SUGGESTIONS = [
   'Make the palette warmer',
   'Use a cooler coastal palette',
   'Add more spacing and polish the look',
+  'Add photos to the hero section',
   'Create a custom footer for the whole site',
   'Add a brand-new custom section',
   'Switch to a coastal portrait look',
@@ -35,7 +36,7 @@ export function PortfolioAiPanel() {
     {
       id: 'sys',
       role: 'system',
-      text: 'Describe the whole portfolio you want. Portfolio AI can switch themes, restyle copy/Style AI, and queue Code AI for brand-new custom React sections. For one section only, use Section AI from the canvas action bar.',
+      text: 'Start blank or refine the whole site. Describe the portfolio you want — Portfolio AI can pick a theme, restyle, and add custom sections. For one section only, use Section AI from the canvas action bar.',
     },
   ]);
 

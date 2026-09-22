@@ -67,6 +67,7 @@ body:has(.fo-picker) {
 
 .fo-picker__header-side--end {
   justify-content: flex-end;
+  gap: 0.55rem;
 }
 
 .fo-picker__brand {
@@ -122,6 +123,100 @@ body:has(.fo-picker) {
 .fo-picker__apply:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+.fo-picker__ai {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid var(--pk-line);
+  border-radius: 0.3rem;
+  padding: 0.55rem 0.95rem;
+  background: var(--pk-surface);
+  color: var(--pk-ink);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+.fo-picker__ai:hover {
+  border-color: color-mix(in srgb, var(--pk-ink) 28%, var(--pk-line));
+  background: rgba(28, 28, 28, 0.03);
+}
+
+.fo-picker__scratch {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 1rem 1.15rem;
+  width: 100%;
+  margin: 0 0 1.5rem;
+  padding: 1.15rem 1.25rem;
+  border: 1px solid var(--pk-line);
+  border-radius: 0.45rem;
+  background:
+    linear-gradient(135deg, rgba(61, 122, 114, 0.08), transparent 55%),
+    var(--pk-surface);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.fo-picker__scratch:hover {
+  border-color: color-mix(in srgb, var(--pk-accent) 45%, var(--pk-line));
+  box-shadow: 0 10px 28px rgba(28, 28, 28, 0.06);
+  transform: translateY(-1px);
+}
+
+.fo-picker__scratch-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.4rem;
+  background: rgba(61, 122, 114, 0.12);
+  color: var(--pk-accent);
+}
+
+.fo-picker__scratch-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.fo-picker__scratch-eyebrow {
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--pk-muted);
+}
+
+.fo-picker__scratch-title {
+  font-family: var(--pk-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.fo-picker__scratch-desc {
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: var(--pk-muted);
+  max-width: 40rem;
+}
+
+.fo-picker__scratch-cta {
+  border-radius: 0.3rem;
+  padding: 0.55rem 1rem;
+  background: var(--pk-accent);
+  color: #fff;
+  font-size: 0.88rem;
+  font-weight: 600;
 }
 
 .fo-picker__body {

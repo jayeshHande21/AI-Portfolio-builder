@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Sparkles } from 'lucide-react';
 import type { ThemeCategory } from '../themes';
 import { listThemePreviews } from './previewFromTheme';
 import { ThemePreviewCard } from './ThemePreviewCard';
@@ -20,6 +20,8 @@ interface ThemePickerProps {
   canGoBack: boolean;
   onSelect: (themeId: string) => void;
   onApply: (themeId: string) => void;
+  /** Flow B — blank draft + Portfolio AI entry. */
+  onBuildFromScratch?: () => void;
   onBack?: () => void;
 }
 
@@ -28,6 +30,7 @@ export function ThemePicker({
   canGoBack,
   onSelect,
   onApply,
+  onBuildFromScratch,
   onBack,
 }: ThemePickerProps) {
   const [filter, setFilter] = useState<FilterId>('all');
@@ -64,6 +67,16 @@ export function ThemePicker({
         </div>
         <h1 className="fo-picker__title">Choose Page Template</h1>
         <div className="fo-picker__header-side fo-picker__header-side--end">
+          {onBuildFromScratch ? (
+            <button
+              type="button"
+              className="fo-picker__ai"
+              onClick={onBuildFromScratch}
+            >
+              <Sparkles size={15} aria-hidden />
+              Build with AI
+            </button>
+          ) : null}
           <button
             type="button"
             className="fo-picker__apply"
@@ -97,8 +110,34 @@ export function ThemePicker({
         <section className="fo-picker__main" aria-label={sectionLabel}>
           <header className="fo-picker__section-head">
             <h2>{sectionLabel}</h2>
-            <p>Pick a starting look. You can refine every section in the editor.</p>
+            <p>
+              Pick a starting look, or build the whole portfolio from scratch
+              with AI.
+            </p>
           </header>
+
+          {onBuildFromScratch ? (
+            <button
+              type="button"
+              className="fo-picker__scratch"
+              onClick={onBuildFromScratch}
+            >
+              <span className="fo-picker__scratch-icon" aria-hidden>
+                <Sparkles size={22} strokeWidth={1.6} />
+              </span>
+              <span className="fo-picker__scratch-copy">
+                <span className="fo-picker__scratch-eyebrow">Flow B · Portfolio AI</span>
+                <span className="fo-picker__scratch-title">
+                  Build from scratch with AI
+                </span>
+                <span className="fo-picker__scratch-desc">
+                  Start blank. Describe the portfolio you want — theme, sections,
+                  and tone — and Portfolio AI builds it on the canvas.
+                </span>
+              </span>
+              <span className="fo-picker__scratch-cta">Start</span>
+            </button>
+          ) : null}
 
           {filtered.length === 0 ? (
             <p className="fo-picker__empty">No templates in this category yet.</p>

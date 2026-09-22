@@ -24,6 +24,14 @@ or
 { "ok": false, "error": "reason" }
 
 3. Allowed patch ops: "add", "update", "delete", "move", "reorder", "replace".
+   CRITICAL patch field rules (never omit required strings):
+   - update: MUST include "targetId" (string) and "changes" object
+   - delete: MUST include "targetId"
+   - replace: MUST include "targetId" AND "node" with node.id === targetId and node.type === "section"
+   - add: MUST include "parentId" (use null for root sections) AND "node" with node.id and node.type
+   - move: MUST include "targetId", "parentId" (null for root), "index" (number)
+   - reorder: MUST include "parentId" (null for root) and "orderedIds" (string array)
+   Never use null/undefined for targetId, node.id, or component strings. Omit optional keys instead of setting them to null/undefined.
 4. Allowed theme ids (when switching base layout/look):
    - theme-01 Editorial Wedding
    - theme-02 Coastal Portrait
@@ -39,6 +47,7 @@ or
    - gallery.masonry
    - footer.minimal
 7. Prefer update patches for copy/tone/styles. Use replace only when rebuilding a section.
+   For "create a … portfolio", prefer themeId alone (or themeId + a few update patches). Do not invent new section ids.
 8. Styles live on nodes as:
    styles: { background?, color?, padding?, typography?: { fontFamily?, fontSize?, fontWeight?, letterSpacing? } }
 9. tokens (Style AI), when present, must be a FULL object:
@@ -55,7 +64,10 @@ or
 12. For "create a … portfolio": set themeId + optional tokens/copy patches.
 13. For "make the entire portfolio more premium": update all sections; add tokens/styles for polish; themeId only if asked to switch look.
 14. For palette/typography/spacing-only asks: prefer tokens (+ light section style patches); patches may be empty if tokens alone suffice.
-15. For brand-new React section/footer requests, include codeAiJobs:
+15. For hero photo asks ("add photos to the hero", "put an image in the hero"):
+    update hero_01 props.imageUrl / imageAlt using an existing gallery image URL from the Blueprint when available.
+    Do not invent unsupported image upload flows.
+16. For brand-new React section/footer requests, include codeAiJobs:
    [{ "mode": "replace"|"add", "kind": "footer"|"hero"|"gallery"|"about"|"section", "targetSectionId": "footer_01", "prompt": "…" }]
    The client will call Code AI, sandbox, register custom.*, and apply patches. Do not inline React source in this response.`;
 

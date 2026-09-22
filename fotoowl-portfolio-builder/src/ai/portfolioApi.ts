@@ -5,8 +5,8 @@
  * Flow:
  * 1. POST /api/ai/portfolio (Vite middleware → OpenAI-compatible LLM)
  * 2. If LLM is not configured (501), fall back to local keyword planner
- * 3. Fulfill any Code AI jobs via /api/ai/section/code
- * 4. If LLM is configured but fails, surface the error (no silent keyword fallback)
+ * 3. If LLM returns invalid patches (422 / fallback), fall back to local planner
+ * 4. Fulfill any Code AI jobs via /api/ai/section/code
  */
 import type {
   CustomComponentDefinition,
@@ -44,6 +44,7 @@ async function requestRemotePortfolioAi(
       body: JSON.stringify(payload),
     });
 
+    // Not configured / missing route → local planner.
     if (response.status === 404 || response.status === 501) {
       return { result: null, allowLocalFallback: true };
     }
@@ -59,12 +60,20 @@ async function requestRemotePortfolioAi(
           error: 'Invalid Portfolio AI response shape',
           source: 'remote',
         },
-        allowLocalFallback: false,
+        allowLocalFallback: true,
       };
     }
 
-    if (data.fallback) {
+    // Server asks for local fallback (invalid LLM patches, etc.).
+    if (data.fallback || response.status === 422) {
       return { result: null, allowLocalFallback: true };
+    }
+
+    if (!data.ok) {
+      return {
+        result: { ...data, source: 'remote' },
+        allowLocalFallback: true,
+      };
     }
 
     return {
@@ -110,7 +119,9 @@ async function fulfillCodeAiJobs(
   for (const job of jobs) {
     const fulfilled = await fulfillPortfolioCodeAiJob(working, job);
     if (!fulfilled.ok) {
-      return fulfilled;
+      // Code AI failure should not wipe a successful theme/style plan.
+      summaries.push(`Code AI skipped: ${fulfilled.error}`);
+      continue;
     }
     customComponents[fulfilled.job.definition.id] = fulfilled.job.definition;
     patches.push(fulfilled.job.patch);
@@ -150,10 +161,12 @@ export async function runPortfolioAi(
   const remote = await requestRemotePortfolioAi(request);
 
   let result: PortfolioAiResult;
-  if (remote.result) {
+  if (remote.result?.ok) {
     result = remote.result;
   } else if (remote.allowLocalFallback) {
     result = planPortfolioPatches(blueprint, trimmed);
+  } else if (remote.result) {
+    return remote.result;
   } else {
     return {
       ok: false,

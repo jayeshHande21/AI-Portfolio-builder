@@ -1,9 +1,14 @@
 /**
  * Validate + scope-check LLM Portfolio AI JSON before it reaches the Canvas.
+ * Invalid individual patches are skipped when themeId/tokens/other patches remain.
  */
 import { z } from 'zod';
 import { blueprintPatchSchema } from '../../src/blueprint/patchSchema';
 import { designTokensSchema } from '../../src/blueprint/schema';
+import {
+  formatZodIssue,
+  normalizePortfolioPatch,
+} from './sanitize';
 
 const ALLOWED_COMPONENTS = [
   'hero.editorial',
@@ -59,12 +64,16 @@ export type ValidatedPortfolioAiSuccess = {
     prompt: string;
   }>;
   source: 'remote';
+  /** True when some LLM patches were dropped as invalid. */
+  skippedPatchCount?: number;
 };
 
 export type ValidatedPortfolioAiError = {
   ok: false;
   error: string;
   source: 'remote';
+  /** Client may fall back to local planner when true. */
+  fallback?: boolean;
 };
 
 export type ValidatedPortfolioAiResult =
@@ -122,6 +131,7 @@ export function parseAndValidatePortfolioAiResponse(
       ok: false,
       error: error instanceof Error ? error.message : 'Invalid LLM JSON',
       source: 'remote',
+      fallback: true,
     };
   }
 
@@ -129,13 +139,19 @@ export function parseAndValidatePortfolioAiResponse(
   if (!shape.success) {
     return {
       ok: false,
-      error: 'LLM JSON did not match Portfolio AI response shape',
+      error: `LLM JSON did not match Portfolio AI response shape (${formatZodIssue(shape.error.issues[0]!)})`,
       source: 'remote',
+      fallback: true,
     };
   }
 
   if (!shape.data.ok) {
-    return { ok: false, error: shape.data.error, source: 'remote' };
+    return {
+      ok: false,
+      error: shape.data.error,
+      source: 'remote',
+      fallback: true,
+    };
   }
 
   const themeId = shape.data.themeId?.trim();
@@ -147,22 +163,30 @@ export function parseAndValidatePortfolioAiResponse(
       ok: false,
       error: `Unsupported themeId "${themeId}"`,
       source: 'remote',
+      fallback: true,
     };
   }
 
   const patches: z.infer<typeof blueprintPatchSchema>[] = [];
+  let skippedPatchCount = 0;
+  const skipReasons: string[] = [];
+
   for (const item of shape.data.patches) {
-    const patch = blueprintPatchSchema.safeParse(item);
+    const normalized = normalizePortfolioPatch(item);
+    const patch = blueprintPatchSchema.safeParse(normalized);
     if (!patch.success) {
-      return {
-        ok: false,
-        error: `Invalid patch: ${patch.error.issues[0]?.message ?? 'schema error'}`,
-        source: 'remote',
-      };
+      skippedPatchCount += 1;
+      const issue = patch.error.issues[0];
+      if (issue) {
+        skipReasons.push(formatZodIssue(issue));
+      }
+      continue;
     }
     const allowed = assertPatchAllowed(patch.data);
     if (allowed) {
-      return { ok: false, error: allowed, source: 'remote' };
+      skippedPatchCount += 1;
+      skipReasons.push(allowed);
+      continue;
     }
     patches.push(patch.data);
   }
@@ -174,18 +198,27 @@ export function parseAndValidatePortfolioAiResponse(
     return {
       ok: false,
       error:
-        'Portfolio AI returned neither themeId, tokens, codeAiJobs, nor patches',
+        skipReasons[0] != null
+          ? `Invalid patch: ${skipReasons[0]}`
+          : 'Portfolio AI returned neither themeId, tokens, codeAiJobs, nor patches',
       source: 'remote',
+      fallback: true,
     };
   }
 
+  const summary =
+    skippedPatchCount > 0
+      ? `${shape.data.summary} (skipped ${skippedPatchCount} invalid patch${skippedPatchCount === 1 ? '' : 'es'})`
+      : shape.data.summary;
+
   return {
     ok: true,
-    summary: shape.data.summary,
+    summary,
     patches,
     ...(themeId ? { themeId } : {}),
     ...(tokens ? { tokens } : {}),
     ...(codeAiJobs?.length ? { codeAiJobs } : {}),
     source: 'remote',
+    ...(skippedPatchCount > 0 ? { skippedPatchCount } : {}),
   };
 }

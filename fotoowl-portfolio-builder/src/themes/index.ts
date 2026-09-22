@@ -1,6 +1,6 @@
 export type { ThemeCategory, ThemeDefinition, ThemeSummary } from './types';
 export { defaultDesignTokens, tokensToCssVars } from './tokens';
-export { createPortfolioFromTheme } from './createPortfolio';
+export { createBlankPortfolio, createPortfolioFromTheme } from './createPortfolio';
 export {
   DEFAULT_THEME_ID,
   getDefaultTheme,

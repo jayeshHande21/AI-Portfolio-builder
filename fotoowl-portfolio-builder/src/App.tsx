@@ -14,6 +14,9 @@ export default function App() {
   const applyThemeAndEnterEditor = useEditorStore(
     (s) => s.applyThemeAndEnterEditor,
   );
+  const startFromScratchWithAi = useEditorStore(
+    (s) => s.startFromScratchWithAi,
+  );
   const returnToEditor = useEditorStore((s) => s.returnToEditor);
 
   return (
@@ -24,6 +27,7 @@ export default function App() {
           canGoBack={hasEnteredEditor}
           onSelect={selectThemePreview}
           onApply={applyThemeAndEnterEditor}
+          onBuildFromScratch={startFromScratchWithAi}
           onBack={returnToEditor}
         />
       ) : (

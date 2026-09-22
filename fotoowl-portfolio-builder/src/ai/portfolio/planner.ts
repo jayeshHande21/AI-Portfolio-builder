@@ -107,6 +107,108 @@ function wantsPremium(prompt: string): boolean {
   ]);
 }
 
+function wantsHeroPhotos(prompt: string): boolean {
+  return (
+    includesAny(prompt, ['photo', 'photos', 'image', 'images', 'picture', 'pictures']) &&
+    includesAny(prompt, ['hero', 'banner', 'opening', 'cover'])
+  );
+}
+
+function findHeroSection(blueprint: PortfolioBlueprint): BlueprintNode | undefined {
+  return blueprint.sections.find((s) => s.component === 'hero.editorial');
+}
+
+function pickHeroImageFromBlueprint(blueprint: PortfolioBlueprint): {
+  imageUrl: string;
+  imageAlt: string;
+} | null {
+  // Prefer first gallery image.
+  const gallery = blueprint.sections.find(
+    (s) => s.component === 'gallery.masonry',
+  );
+  const images = gallery?.props?.images;
+  if (Array.isArray(images) && images.length > 0) {
+    const first = images[0] as { url?: unknown; alt?: unknown };
+    if (typeof first?.url === 'string' && first.url) {
+      return {
+        imageUrl: first.url,
+        imageAlt:
+          typeof first.alt === 'string' && first.alt
+            ? first.alt
+            : 'Featured photograph',
+      };
+    }
+  }
+
+  // Then any Blueprint asset URL.
+  for (const asset of Object.values(blueprint.assets ?? {})) {
+    if (asset?.url) {
+      return {
+        imageUrl: asset.url,
+        imageAlt: asset.alt || 'Featured photograph',
+      };
+    }
+  }
+
+  // About portrait as last resort.
+  const about = blueprint.sections.find(
+    (s) =>
+      s.component === 'about.image_left' ||
+      s.component === 'about.image_right',
+  );
+  const aboutUrl = about?.props?.imageUrl;
+  if (typeof aboutUrl === 'string' && aboutUrl) {
+    return {
+      imageUrl: aboutUrl,
+      imageAlt:
+        typeof about?.props?.imageAlt === 'string'
+          ? String(about.props.imageAlt)
+          : 'Featured photograph',
+    };
+  }
+
+  return null;
+}
+
+function planHeroPhotoPatches(
+  blueprint: PortfolioBlueprint,
+): Extract<PortfolioAiResult, { ok: true }> | PortfolioAiResult {
+  const hero = findHeroSection(blueprint);
+  if (!hero) {
+    return {
+      ok: false,
+      error: 'No hero.editorial section found to update photos.',
+      source: 'local',
+    };
+  }
+
+  const picked = pickHeroImageFromBlueprint(blueprint);
+  if (!picked) {
+    return {
+      ok: false,
+      error:
+        'No gallery or asset images available to place in the Hero. Add gallery images first, or upload an asset.',
+      source: 'local',
+    };
+  }
+
+  const props = asProps(hero);
+  return {
+    ok: true,
+    summary: `Updated Hero photo from portfolio media (${picked.imageAlt}).`,
+    patches: [
+      updateNodePatch(hero.id, {
+        props: {
+          ...props,
+          imageUrl: picked.imageUrl,
+          imageAlt: picked.imageAlt,
+        },
+      }),
+    ],
+    source: 'local',
+  };
+}
+
 function premiumPatchesForSections(
   sections: BlueprintNode[],
 ): { patches: BlueprintPatch[]; summaries: string[] } {
@@ -235,12 +337,19 @@ export function planPortfolioPatches(
   const premium = wantsPremium(prompt);
   const themePick = pickThemeFromPrompt(prompt);
   const stylePlan = planStyleChanges(blueprint, promptRaw);
+  const heroPhotos = wantsHeroPhotos(prompt);
   const codeOnly =
     wantsCodeAi(promptRaw) &&
     !create &&
     !premium &&
     !themePick &&
-    !isStyleIntent(promptRaw);
+    !isStyleIntent(promptRaw) &&
+    !heroPhotos;
+
+  // Hero photo / media intents (use gallery or assets).
+  if (heroPhotos && !create) {
+    return planHeroPhotoPatches(blueprint);
+  }
 
   // Code-AI-only portfolio request (no theme/style/copy rewrite).
   if (codeOnly) {
@@ -401,7 +510,7 @@ export function planPortfolioPatches(
   return {
     ok: false,
     error:
-      'Could not map that prompt to a portfolio change. Try: “Create a premium wedding portfolio”, “Make the entire portfolio more premium”, “Make the palette warmer”, “Add a brand-new custom section”, or “Switch to a dark studio look”.',
+      'Could not map that prompt to a portfolio change. Try: “Create a premium wedding portfolio”, “Make the entire portfolio more premium”, “Make the palette warmer”, “Add photos to the hero”, “Add a brand-new custom section”, or “Switch to a dark studio look”.',
     source: 'local',
   };
 }

@@ -2,7 +2,31 @@
  * Validate Portfolio AI LLM response parsing (no network).
  */
 import { describe, expect, it } from 'vitest';
+import { normalizePortfolioPatch } from './sanitize';
 import { parseAndValidatePortfolioAiResponse } from './validate';
+
+describe('Portfolio AI sanitize', () => {
+  it('defaults add.parentId to null when omitted', () => {
+    const normalized = normalizePortfolioPatch({
+      op: 'add',
+      node: { id: 'x', type: 'section', component: 'footer.minimal', props: {} },
+    }) as { parentId: null };
+    expect(normalized.parentId).toBeNull();
+  });
+
+  it('fills replace.targetId from node.id', () => {
+    const normalized = normalizePortfolioPatch({
+      op: 'replace',
+      node: {
+        id: 'footer_01',
+        type: 'section',
+        component: 'footer.minimal',
+        props: {},
+      },
+    }) as { targetId: string };
+    expect(normalized.targetId).toBe('footer_01');
+  });
+});
 
 describe('Portfolio AI validate', () => {
   it('accepts themeId-only create responses', () => {
@@ -47,7 +71,30 @@ describe('Portfolio AI validate', () => {
     expect(result.tokens?.colors.accent).toBe('#8a5a2b');
   });
 
-  it('rejects unsupported components', () => {
+  it('skips invalid patches when themeId is present', () => {
+    const result = parseAndValidatePortfolioAiResponse(
+      JSON.stringify({
+        ok: true,
+        summary: 'Wedding portfolio',
+        themeId: 'theme-01',
+        patches: [
+          { op: 'update', changes: { props: { title: 'Hi' } } },
+          {
+            op: 'update',
+            targetId: 'hero_01',
+            changes: { props: { title: 'Stories' } },
+          },
+        ],
+      }),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.themeId).toBe('theme-01');
+    expect(result.patches).toHaveLength(1);
+    expect(result.skippedPatchCount).toBe(1);
+  });
+
+  it('rejects unsupported-only responses with fallback', () => {
     const result = parseAndValidatePortfolioAiResponse(
       JSON.stringify({
         ok: true,
@@ -67,9 +114,11 @@ describe('Portfolio AI validate', () => {
       }),
     );
     expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.fallback).toBe(true);
   });
 
-  it('rejects empty themeId and patches', () => {
+  it('rejects empty themeId and patches with fallback', () => {
     const result = parseAndValidatePortfolioAiResponse(
       JSON.stringify({
         ok: true,
@@ -78,5 +127,7 @@ describe('Portfolio AI validate', () => {
       }),
     );
     expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.fallback).toBe(true);
   });
 });
