@@ -40,3 +40,31 @@ export interface SectionAiContext {
   sectionId: string;
   prompt: string;
 }
+
+/** Portfolio-scoped AI (Phase 9) — entire Blueprint, not one section. */
+export interface PortfolioAiRequest {
+  scope: 'portfolio';
+  prompt: string;
+  /** Current Blueprint snapshot (sections + tokens + theme). */
+  blueprint: PortfolioBlueprint;
+}
+
+export interface PortfolioAiResponse {
+  ok: true;
+  summary: string;
+  patches: BlueprintPatch[];
+  /**
+   * When set, client clones this theme first, then applies patches.
+   * Section IDs in patches must match the chosen theme (hero_01, …).
+   */
+  themeId?: string;
+  source: 'local' | 'remote';
+}
+
+export interface PortfolioAiError {
+  ok: false;
+  error: string;
+  source?: 'local' | 'remote';
+}
+
+export type PortfolioAiResult = PortfolioAiResponse | PortfolioAiError;

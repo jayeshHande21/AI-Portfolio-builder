@@ -1,10 +1,12 @@
 import { useEffect } from 'react';
 import { Puck } from '@puckeditor/core';
 import type { Data } from '@puckeditor/core';
+import { Sparkles } from 'lucide-react';
 import {
   selectPuckData,
   useEditorStore,
 } from '../editor/state';
+import { PortfolioAiPanel } from '../ai/PortfolioAiPanel';
 import { SectionAiPanel } from '../ai/SectionAiPanel';
 import {
   toPuckViewportUi,
@@ -17,6 +19,8 @@ import { CanvasFrame } from './CanvasFrame';
 function EditorToolbar() {
   const blueprint = useEditorStore((s) => s.blueprint);
   const openThemePicker = useEditorStore((s) => s.openThemePicker);
+  const openPortfolioAi = useEditorStore((s) => s.openPortfolioAi);
+  const portfolioAiOpen = useEditorStore((s) => s.portfolioAiOpen);
 
   return (
     <header className="fo-toolbar" aria-label="Editor toolbar">
@@ -31,6 +35,15 @@ function EditorToolbar() {
           onClick={openThemePicker}
         >
           Change template
+        </button>
+        <button
+          type="button"
+          className={`fo-toolbar__ai${portfolioAiOpen ? ' fo-toolbar__ai--active' : ''}`}
+          onClick={openPortfolioAi}
+          aria-pressed={portfolioAiOpen}
+        >
+          <Sparkles size={14} aria-hidden />
+          Portfolio AI
         </button>
       </div>
     </header>
@@ -90,13 +103,14 @@ function useHistoryHotkeys() {
 
 /**
  * Interactive portfolio Canvas — Blueprint → Registry → Puck Adapter → Puck.
- * Layout: toolbar + canvas | Section AI (right, opened from section action bar).
+ * Layout: toolbar + canvas | Section AI / Portfolio AI (right rail).
  */
 export function Canvas() {
   const blueprint = useEditorStore((s) => s.blueprint);
   const editorEpoch = useEditorStore((s) => s.editorEpoch);
   const viewportId = useEditorStore((s) => s.viewportId);
   const sectionAiOpen = useEditorStore((s) => s.sectionAiOpen);
+  const portfolioAiOpen = useEditorStore((s) => s.portfolioAiOpen);
   const selectedNodeId = useEditorStore((s) => s.selectedNodeId);
   const syncFromPuck = useEditorStore((s) => s.syncFromPuck);
   const selectNode = useEditorStore((s) => s.selectNode);
@@ -104,6 +118,7 @@ export function Canvas() {
   const lastPatchError = useEditorStore((s) => s.lastPatchError);
   const puckData = selectPuckData(blueprint);
   const itemSelector = itemSelectorForNodeId(puckData, selectedNodeId);
+  const aiRailOpen = sectionAiOpen || portfolioAiOpen;
 
   useHistoryHotkeys();
 
@@ -147,9 +162,12 @@ export function Canvas() {
               viewports={toPuckViewports()}
             />
           </div>
-          {sectionAiOpen ? (
-            <aside className="fo-ai-rail" aria-label="Section AI">
-              <SectionAiPanel />
+          {aiRailOpen ? (
+            <aside
+              className="fo-ai-rail"
+              aria-label={portfolioAiOpen ? 'Portfolio AI' : 'Section AI'}
+            >
+              {portfolioAiOpen ? <PortfolioAiPanel /> : <SectionAiPanel />}
               {lastPatchError ? (
                 <p className="fo-ai-rail__error" role="alert">
                   {lastPatchError}

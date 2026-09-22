@@ -112,6 +112,31 @@ body {
   text-overflow: ellipsis;
 }
 
+.fo-toolbar__ai {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid rgba(243, 241, 236, 0.18);
+  border-radius: 0.35rem;
+  padding: 0.45rem 0.75rem;
+  background: rgba(0, 0, 0, 0.28);
+  color: var(--fo-chrome-text);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.fo-toolbar__ai:hover {
+  border-color: rgba(243, 241, 236, 0.35);
+}
+
+.fo-toolbar__ai--active {
+  border-color: rgba(243, 241, 236, 0.5);
+  background: rgba(243, 241, 236, 0.1);
+}
+
 .fo-toolbar__theme {
   display: flex;
   align-items: center;

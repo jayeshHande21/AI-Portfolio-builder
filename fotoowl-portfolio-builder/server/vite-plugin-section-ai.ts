@@ -1,5 +1,5 @@
 /**
- * Vite plugin: POST /api/ai/section → OpenAI-compatible LLM → validated patches.
+ * Vite plugin: AI middleware for Section / Code / Portfolio routes.
  * Secrets are read from process env / .env (never VITE_* client exposure).
  */
 import type { Plugin } from 'vite';

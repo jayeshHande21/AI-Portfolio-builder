@@ -1,8 +1,9 @@
 /**
- * HTTP handlers for Section AI + Code AI (V2).
+ * HTTP handlers for Section AI + Code AI (V2) + Portfolio AI (Phase 9).
  */
 import { z } from 'zod';
 import { runCodeAi } from '../codeAi/llm';
+import { runPortfolioAiLlm } from '../portfolioAi/llm';
 import { readSectionAiLlmConfig, runSectionAiLlm } from './llm';
 
 const sectionRequestSchema = z.object({
@@ -31,6 +32,12 @@ const codeRequestSchema = z.object({
     name: z.string(),
     themeId: z.string().optional(),
   }),
+});
+
+const portfolioRequestSchema = z.object({
+  scope: z.literal('portfolio').optional(),
+  prompt: z.string().min(1),
+  blueprint: z.unknown(),
 });
 
 export type SectionAiHandlerEnv = Record<string, string | undefined>;
@@ -67,6 +74,7 @@ async function readBody(req: AsyncIterable<Uint8Array | string | Buffer>) {
  * Routes:
  * - POST /api/ai/section
  * - POST /api/ai/section/code
+ * - POST /api/ai/portfolio
  */
 export function createSectionAiMiddleware(getEnv: () => SectionAiHandlerEnv) {
   return async function sectionAiMiddleware(
@@ -76,7 +84,11 @@ export function createSectionAiMiddleware(getEnv: () => SectionAiHandlerEnv) {
   ) {
     const url = (req.url ?? '').split('?')[0] ?? '';
 
-    if (url !== '/api/ai/section' && url !== '/api/ai/section/code') {
+    if (
+      url !== '/api/ai/section' &&
+      url !== '/api/ai/section/code' &&
+      url !== '/api/ai/portfolio'
+    ) {
       next();
       return;
     }
@@ -100,6 +112,11 @@ export function createSectionAiMiddleware(getEnv: () => SectionAiHandlerEnv) {
 
       if (url === '/api/ai/section/code') {
         await handleCodeAi(getEnv(), json, res);
+        return;
+      }
+
+      if (url === '/api/ai/portfolio') {
+        await handlePortfolioAi(getEnv(), json, res);
         return;
       }
 
@@ -178,4 +195,39 @@ async function handleCodeAi(
     definition: result.definition,
     source: result.source,
   });
+}
+
+async function handlePortfolioAi(
+  env: SectionAiHandlerEnv,
+  json: unknown,
+  res: Res,
+) {
+  const config = readSectionAiLlmConfig(env);
+  if (!config) {
+    sendJson(res, 501, {
+      ok: false,
+      error:
+        'Portfolio AI LLM is not configured. Set OPENAI_API_KEY in .env (see .env.example).',
+      source: 'remote',
+      fallback: true,
+    });
+    return;
+  }
+
+  const parsed = portfolioRequestSchema.safeParse(json);
+  if (!parsed.success) {
+    sendJson(res, 400, {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? 'Invalid request',
+      source: 'remote',
+    });
+    return;
+  }
+
+  const result = await runPortfolioAiLlm(env, {
+    prompt: parsed.data.prompt,
+    blueprint: parsed.data.blueprint,
+  });
+
+  sendJson(res, result.ok ? 200 : 422, result);
 }

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { Data } from '@puckeditor/core';
 import {
   buildReplacePatchForCustomComponent,
+  runPortfolioAi,
   runSectionCodeAi,
   runSectionAi,
 } from '../../ai';
@@ -102,6 +103,10 @@ interface EditorState {
   sectionAiLoading: boolean;
   /** Whether the Section AI right rail is open (opened from section action bar). */
   sectionAiOpen: boolean;
+  /** Portfolio AI in-flight flag (editor runtime). */
+  portfolioAiLoading: boolean;
+  /** Whether the Portfolio AI right rail is open (opened from toolbar). */
+  portfolioAiOpen: boolean;
 
   selectThemePreview: (themeId: string) => void;
   openThemePicker: () => void;
@@ -116,6 +121,8 @@ interface EditorState {
   selectNode: (nodeId: string | null) => void;
   openSectionAi: (nodeId?: string | null) => void;
   closeSectionAi: () => void;
+  openPortfolioAi: () => void;
+  closePortfolioAi: () => void;
   applyBlueprintPatch: (patch: BlueprintPatch, label?: string) => boolean;
   applyBlueprintPatches: (patches: BlueprintPatch[], label?: string) => boolean;
   /** Section AI → patches → Blueprint (same mutation path as manual edits). */
@@ -126,6 +133,12 @@ interface EditorState {
   }>;
   /** V2 Code AI → custom React component → register → replace section. */
   runSectionCodeAiPrompt: (prompt: string) => Promise<{
+    ok: boolean;
+    summary?: string;
+    error?: string;
+  }>;
+  /** Phase 9 Portfolio AI → optional theme clone + patches → Blueprint. */
+  runPortfolioAiPrompt: (prompt: string) => Promise<{
     ok: boolean;
     summary?: string;
     error?: string;
@@ -206,6 +219,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   viewportId: DEFAULT_VIEWPORT,
   sectionAiLoading: false,
   sectionAiOpen: false,
+  portfolioAiLoading: false,
+  portfolioAiOpen: false,
 
   selectThemePreview: (themeId) => {
     set({ selectedThemeId: themeId });
@@ -216,6 +231,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       appPhase: 'picker',
       selectedThemeId: get().blueprint.themeId ?? DEFAULT_THEME_ID,
       sectionAiOpen: false,
+      portfolioAiOpen: false,
     });
   },
 
@@ -249,6 +265,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       history: createEmptyHistory(),
       sectionAiOpen: false,
       sectionAiLoading: false,
+      portfolioAiOpen: false,
+      portfolioAiLoading: false,
       selectedThemeId: theme.id,
     });
   },
@@ -272,6 +290,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   openSectionAi: (nodeId) => {
     set({
       sectionAiOpen: true,
+      portfolioAiOpen: false,
       ...(nodeId !== undefined ? { selectedNodeId: nodeId } : {}),
       lastPatchError: null,
     });
@@ -279,6 +298,18 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   closeSectionAi: () => {
     set({ sectionAiOpen: false, sectionAiLoading: false });
+  },
+
+  openPortfolioAi: () => {
+    set({
+      portfolioAiOpen: true,
+      sectionAiOpen: false,
+      lastPatchError: null,
+    });
+  },
+
+  closePortfolioAi: () => {
+    set({ portfolioAiOpen: false, portfolioAiLoading: false });
   },
 
   applyBlueprintPatch: (patch, label = `Patch:${patch.op}`) => {
@@ -439,6 +470,75 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       const message =
         error instanceof Error ? error.message : 'Code AI failed';
       set({ lastPatchError: message, sectionAiLoading: false });
+      return { ok: false, error: message };
+    }
+  },
+
+  runPortfolioAiPrompt: async (prompt) => {
+    const before = get().blueprint;
+    set({
+      portfolioAiLoading: true,
+      lastPatchError: null,
+      portfolioAiOpen: true,
+      sectionAiOpen: false,
+    });
+
+    try {
+      const result = await runPortfolioAi(before, prompt);
+      if (!result.ok) {
+        set({ lastPatchError: result.error, portfolioAiLoading: false });
+        return { ok: false, error: result.error };
+      }
+
+      let next: PortfolioBlueprint = before;
+      if (result.themeId) {
+        const theme = requireTheme(result.themeId);
+        next = validateBlueprint({
+          ...createPortfolioFromTheme(theme),
+          id: before.id,
+        });
+        clearRuntimeCustomComponents();
+      }
+
+      if (result.patches.length > 0) {
+        const applied = applyPatches(next, result.patches);
+        if (!applied.ok) {
+          set({
+            lastPatchError: applied.error,
+            portfolioAiLoading: false,
+          });
+          return { ok: false, error: applied.error };
+        }
+        next = applied.blueprint;
+      }
+
+      if (blueprintsEqualForHistory(before, next)) {
+        set({
+          portfolioAiLoading: false,
+          lastPatchError: 'Portfolio AI produced no changes',
+        });
+        return { ok: false, error: 'Portfolio AI produced no changes' };
+      }
+
+      commitBlueprintChange(set, get, {
+        before,
+        after: next,
+        label: `Portfolio AI: ${result.summary}`,
+        patch: result.patches[0],
+        remount: true,
+        selectedNodeId: null,
+      });
+      syncCustomRuntime(next);
+      set({
+        portfolioAiLoading: false,
+        portfolioAiOpen: true,
+        selectedThemeId: next.themeId ?? get().selectedThemeId,
+      });
+      return { ok: true, summary: result.summary };
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Portfolio AI failed';
+      set({ lastPatchError: message, portfolioAiLoading: false });
       return { ok: false, error: message };
     }
   },
