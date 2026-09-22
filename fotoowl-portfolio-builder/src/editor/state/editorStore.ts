@@ -6,6 +6,7 @@ import {
   runSectionCodeAi,
   runSectionAi,
 } from '../../ai';
+import { wantsCodeAi } from '../../ai/portfolio/codeJobs';
 import type {
   BlueprintPatch,
   PortfolioBlueprint,
@@ -51,22 +52,6 @@ import {
   requireTheme,
   type ThemeDefinition,
 } from '../../themes';
-
-function wantsCodeAi(prompt: string): boolean {
-  const p = prompt.toLowerCase();
-  return [
-    'brand-new custom',
-    'new custom component',
-    'generate a new component',
-    'generate a brand-new',
-    'completely new component',
-    'custom react component',
-    'create a custom component',
-    'create a custom footer',
-    'create a custom section',
-    'brand new custom',
-  ].some((needle) => p.includes(needle));
-}
 
 function syncCustomRuntime(blueprint: PortfolioBlueprint) {
   clearRuntimeCustomComponents();
@@ -505,6 +490,26 @@ export const useEditorStore = create<EditorState>((set, get) => ({
           ...next,
           tokens: result.tokens,
         });
+      }
+
+      if (result.customComponents) {
+        next = validateBlueprint({
+          ...next,
+          customComponents: {
+            ...next.customComponents,
+            ...result.customComponents,
+          },
+        });
+        for (const definition of Object.values(result.customComponents)) {
+          const registered = registerCustomComponent(definition);
+          if (!registered.ok) {
+            set({
+              lastPatchError: registered.error,
+              portfolioAiLoading: false,
+            });
+            return { ok: false, error: registered.error };
+          }
+        }
       }
 
       if (result.patches.length > 0) {

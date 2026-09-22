@@ -3,7 +3,8 @@
  * Independent of Puck and of any specific model vendor.
  */
 import type { BlueprintNode, BlueprintPatch, PortfolioBlueprint } from '../blueprint';
-import type { DesignTokens } from '../blueprint';
+import type { CustomComponentDefinition, DesignTokens } from '../blueprint';
+import type { PortfolioCodeAiJob } from './portfolio/codeJobs';
 
 export type AiScope = 'section' | 'portfolio';
 
@@ -64,6 +65,15 @@ export interface PortfolioAiResponse {
    * before patches. Replaces Blueprint.tokens.
    */
   tokens?: DesignTokens;
+  /**
+   * Code AI jobs to fulfill (client calls /api/ai/section/code).
+   * After fulfillment, definitions land in customComponents and patches.
+   */
+  codeAiJobs?: PortfolioCodeAiJob[];
+  /**
+   * Custom components to store on Blueprint (after Code AI fulfillment).
+   */
+  customComponents?: Record<string, CustomComponentDefinition>;
   source: 'local' | 'remote';
 }
 

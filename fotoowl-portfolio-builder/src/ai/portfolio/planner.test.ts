@@ -90,6 +90,16 @@ describe('Portfolio AI planner', () => {
     expect(result.tokens?.colors.accent).toBe('#8a5a2b');
   });
 
+  it('queues Code AI for a custom footer', () => {
+    const bp = sample();
+    const result = planPortfolioPatches(bp, 'Create a custom footer');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.codeAiJobs?.length).toBe(1);
+    expect(result.codeAiJobs?.[0]?.mode).toBe('replace');
+    expect(result.codeAiJobs?.[0]?.kind).toBe('footer');
+  });
+
   it('rejects empty / unmapped prompts', () => {
     const bp = sample();
     expect(planPortfolioPatches(bp, '   ').ok).toBe(false);

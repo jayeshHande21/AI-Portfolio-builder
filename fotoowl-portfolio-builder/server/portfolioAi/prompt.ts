@@ -17,7 +17,8 @@ Rules:
   "summary": "short human summary",
   "patches": [ /* Blueprint patches */ ],
   "themeId": "theme-01", // optional
-  "tokens": { /* optional full DesignTokens */ }
+  "tokens": { /* optional full DesignTokens */ },
+  "codeAiJobs": [ /* optional Code AI jobs — see rule 15 */ ]
 }
 or
 { "ok": false, "error": "reason" }
@@ -53,7 +54,10 @@ or
 11. Preserve existing image URLs unless the user asks to change them.
 12. For "create a … portfolio": set themeId + optional tokens/copy patches.
 13. For "make the entire portfolio more premium": update all sections; add tokens/styles for polish; themeId only if asked to switch look.
-14. For palette/typography/spacing-only asks: prefer tokens (+ light section style patches); patches may be empty if tokens alone suffice.`;
+14. For palette/typography/spacing-only asks: prefer tokens (+ light section style patches); patches may be empty if tokens alone suffice.
+15. For brand-new React section/footer requests, include codeAiJobs:
+   [{ "mode": "replace"|"add", "kind": "footer"|"hero"|"gallery"|"about"|"section", "targetSectionId": "footer_01", "prompt": "…" }]
+   The client will call Code AI, sandbox, register custom.*, and apply patches. Do not inline React source in this response.`;
 
 export function buildPortfolioAiUserPrompt(input: {
   prompt: string;
@@ -65,6 +69,6 @@ export function buildPortfolioAiUserPrompt(input: {
     `Current portfolio Blueprint JSON:`,
     JSON.stringify(input.blueprint, null, 2),
     ``,
-    `Return JSON (patches and/or themeId and/or tokens) that fulfill the portfolio-scoped request.`,
+    `Return JSON (patches and/or themeId and/or tokens and/or codeAiJobs) that fulfill the portfolio-scoped request.`,
   ].join('\n');
 }

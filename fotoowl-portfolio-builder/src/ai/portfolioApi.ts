@@ -5,10 +5,18 @@
  * Flow:
  * 1. POST /api/ai/portfolio (Vite middleware → OpenAI-compatible LLM)
  * 2. If LLM is not configured (501), fall back to local keyword planner
- * 3. If LLM is configured but fails, surface the error (no silent keyword fallback)
+ * 3. Fulfill any Code AI jobs via /api/ai/section/code
+ * 4. If LLM is configured but fails, surface the error (no silent keyword fallback)
  */
-import type { PortfolioBlueprint } from '../blueprint';
+import type {
+  CustomComponentDefinition,
+  PortfolioBlueprint,
+} from '../blueprint';
+import { applyPatch } from '../blueprint';
+import { createPortfolioFromTheme, requireTheme } from '../themes';
+import { fulfillPortfolioCodeAiJob } from './codeApi';
 import { planPortfolioPatches } from './portfolio';
+import { planPortfolioCodeAiJobs } from './portfolio/codeJobs';
 import type { PortfolioAiRequest, PortfolioAiResult } from './types';
 
 const PORTFOLIO_AI_ENDPOINT =
@@ -69,8 +77,65 @@ async function requestRemotePortfolioAi(
 }
 
 /**
+ * Resolve Code AI jobs against the Blueprint that will exist after theme clone.
+ */
+async function fulfillCodeAiJobs(
+  baseBlueprint: PortfolioBlueprint,
+  result: Extract<PortfolioAiResult, { ok: true }>,
+  prompt: string,
+): Promise<PortfolioAiResult> {
+  let jobs = result.codeAiJobs ?? [];
+  if (jobs.length === 0) {
+    jobs = planPortfolioCodeAiJobs(baseBlueprint, prompt);
+  }
+  if (jobs.length === 0) {
+    return result;
+  }
+
+  // Jobs target section ids from the post-theme tree when themeId is set.
+  let working: PortfolioBlueprint = baseBlueprint;
+  if (result.themeId) {
+    working = {
+      ...createPortfolioFromTheme(requireTheme(result.themeId)),
+      id: baseBlueprint.id,
+    };
+  }
+
+  const customComponents: Record<string, CustomComponentDefinition> = {
+    ...(result.customComponents ?? {}),
+  };
+  const patches = [...result.patches];
+  const summaries = [result.summary];
+
+  for (const job of jobs) {
+    const fulfilled = await fulfillPortfolioCodeAiJob(working, job);
+    if (!fulfilled.ok) {
+      return fulfilled;
+    }
+    customComponents[fulfilled.job.definition.id] = fulfilled.job.definition;
+    patches.push(fulfilled.job.patch);
+    summaries.push(fulfilled.job.summary);
+
+    const applied = applyPatch(working, fulfilled.job.patch);
+    if (applied.ok) {
+      working = applied.blueprint;
+    }
+  }
+
+  return {
+    ok: true,
+    summary: summaries.filter(Boolean).join(' '),
+    patches,
+    themeId: result.themeId,
+    tokens: result.tokens,
+    customComponents,
+    source: result.source,
+  };
+}
+
+/**
  * Run Portfolio AI for the full Blueprint.
- * Returns structured patches (+ optional themeId) — never raw HTML or free JS.
+ * Returns structured patches (+ optional themeId / tokens / customComponents).
  */
 export async function runPortfolioAi(
   blueprint: PortfolioBlueprint,
@@ -83,17 +148,21 @@ export async function runPortfolioAi(
 
   const request = buildRequest(blueprint, trimmed);
   const remote = await requestRemotePortfolioAi(request);
+
+  let result: PortfolioAiResult;
   if (remote.result) {
-    return remote.result;
+    result = remote.result;
+  } else if (remote.allowLocalFallback) {
+    result = planPortfolioPatches(blueprint, trimmed);
+  } else {
+    return {
+      ok: false,
+      error: 'Portfolio AI request failed',
+      source: 'remote',
+    };
   }
 
-  if (remote.allowLocalFallback) {
-    return planPortfolioPatches(blueprint, trimmed);
-  }
+  if (!result.ok) return result;
 
-  return {
-    ok: false,
-    error: 'Portfolio AI request failed',
-    source: 'remote',
-  };
+  return fulfillCodeAiJobs(blueprint, result, trimmed);
 }

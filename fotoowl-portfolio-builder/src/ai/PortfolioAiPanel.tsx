@@ -15,7 +15,8 @@ const SUGGESTIONS = [
   'Make the palette warmer',
   'Use a cooler coastal palette',
   'Add more spacing and polish the look',
-  'Switch to editorial serif typography',
+  'Create a custom footer for the whole site',
+  'Add a brand-new custom section',
   'Switch to a coastal portrait look',
 ];
 
@@ -34,7 +35,7 @@ export function PortfolioAiPanel() {
     {
       id: 'sys',
       role: 'system',
-      text: 'Describe the whole portfolio you want. Portfolio AI can switch themes, restyle copy, and apply Style AI (palette, type, spacing). For one section only, use Section AI from the canvas action bar.',
+      text: 'Describe the whole portfolio you want. Portfolio AI can switch themes, restyle copy/Style AI, and queue Code AI for brand-new custom React sections. For one section only, use Section AI from the canvas action bar.',
     },
   ]);
 

@@ -27,6 +27,16 @@ const llmSuccessSchema = z.object({
   patches: z.array(z.unknown()).default([]),
   themeId: z.string().optional(),
   tokens: designTokensSchema.optional(),
+  codeAiJobs: z
+    .array(
+      z.object({
+        mode: z.enum(['replace', 'add']),
+        kind: z.enum(['footer', 'hero', 'gallery', 'about', 'section']),
+        targetSectionId: z.string().optional(),
+        prompt: z.string().min(1),
+      }),
+    )
+    .optional(),
 });
 
 const llmErrorSchema = z.object({
@@ -42,6 +52,12 @@ export type ValidatedPortfolioAiSuccess = {
   patches: z.infer<typeof blueprintPatchSchema>[];
   themeId?: string;
   tokens?: z.infer<typeof designTokensSchema>;
+  codeAiJobs?: Array<{
+    mode: 'replace' | 'add';
+    kind: 'footer' | 'hero' | 'gallery' | 'about' | 'section';
+    targetSectionId?: string;
+    prompt: string;
+  }>;
   source: 'remote';
 };
 
@@ -152,11 +168,13 @@ export function parseAndValidatePortfolioAiResponse(
   }
 
   const tokens = shape.data.tokens;
+  const codeAiJobs = shape.data.codeAiJobs;
 
-  if (!themeId && patches.length === 0 && !tokens) {
+  if (!themeId && patches.length === 0 && !tokens && !codeAiJobs?.length) {
     return {
       ok: false,
-      error: 'Portfolio AI returned neither themeId, tokens, nor patches',
+      error:
+        'Portfolio AI returned neither themeId, tokens, codeAiJobs, nor patches',
       source: 'remote',
     };
   }
@@ -167,6 +185,7 @@ export function parseAndValidatePortfolioAiResponse(
     patches,
     ...(themeId ? { themeId } : {}),
     ...(tokens ? { tokens } : {}),
+    ...(codeAiJobs?.length ? { codeAiJobs } : {}),
     source: 'remote',
   };
 }

@@ -8,6 +8,7 @@ import type { BlueprintNode, BlueprintPatch, PortfolioBlueprint } from '../../bl
 import { updateNodePatch } from '../../blueprint';
 import { isStyleIntent, planStyleChanges } from '../style';
 import type { PortfolioAiResult } from '../types';
+import { planPortfolioCodeAiJobs, wantsCodeAi } from './codeJobs';
 
 function includesAny(haystack: string, needles: string[]): boolean {
   return needles.some((n) => haystack.includes(n));
@@ -203,9 +204,23 @@ function canonicalStubSections(): BlueprintNode[] {
   ];
 }
 
+function withCodeAiJobs(
+  blueprint: PortfolioBlueprint,
+  promptRaw: string,
+  result: Extract<PortfolioAiResult, { ok: true }>,
+): Extract<PortfolioAiResult, { ok: true }> {
+  const jobs = planPortfolioCodeAiJobs(blueprint, promptRaw);
+  if (jobs.length === 0) return result;
+  return {
+    ...result,
+    codeAiJobs: jobs,
+    summary: `${result.summary} Queued Code AI for ${jobs.length} custom component${jobs.length === 1 ? '' : 's'}.`,
+  };
+}
+
 /**
  * Plan portfolio-scoped changes from a natural-language prompt.
- * Orchestrates theme pick + Style AI + copy patches.
+ * Orchestrates theme pick + Style AI + copy patches + Code AI jobs.
  */
 export function planPortfolioPatches(
   blueprint: PortfolioBlueprint,
@@ -220,6 +235,26 @@ export function planPortfolioPatches(
   const premium = wantsPremium(prompt);
   const themePick = pickThemeFromPrompt(prompt);
   const stylePlan = planStyleChanges(blueprint, promptRaw);
+  const codeOnly =
+    wantsCodeAi(promptRaw) &&
+    !create &&
+    !premium &&
+    !themePick &&
+    !isStyleIntent(promptRaw);
+
+  // Code-AI-only portfolio request (no theme/style/copy rewrite).
+  if (codeOnly) {
+    const jobs = planPortfolioCodeAiJobs(blueprint, promptRaw);
+    if (jobs.length > 0) {
+      return {
+        ok: true,
+        summary: `Queued Code AI for ${jobs.length} custom component${jobs.length === 1 ? '' : 's'}.`,
+        patches: [],
+        codeAiJobs: jobs,
+        source: 'local',
+      };
+    }
+  }
 
   // Create / rebuild → switch theme (or default editorial) + optional premium / style.
   if (create) {
@@ -254,14 +289,14 @@ export function planPortfolioPatches(
       summaries.push(...styleOnStubs.summaries);
     }
 
-    return {
+    return withCodeAiJobs(blueprint, promptRaw, {
       ok: true,
       summary: summaries.join('. ') + '.',
       patches,
       themeId: pick.themeId,
       ...(styleOnStubs?.tokens ? { tokens: styleOnStubs.tokens } : {}),
       source: 'local',
-    };
+    });
   }
 
   // Restyle current portfolio (copy + Style AI).
@@ -274,7 +309,7 @@ export function planPortfolioPatches(
       summaries.push(...stylePlan.summaries);
     }
 
-    if (patches.length === 0 && !stylePlan?.tokens) {
+    if (patches.length === 0 && !stylePlan?.tokens && !wantsCodeAi(promptRaw)) {
       return {
         ok: false,
         error:
@@ -292,7 +327,7 @@ export function planPortfolioPatches(
     const themeId =
       wantsThemeSwitch && themePick ? themePick.themeId : undefined;
 
-    return {
+    return withCodeAiJobs(blueprint, promptRaw, {
       ok: true,
       summary:
         (themeId
@@ -304,7 +339,7 @@ export function planPortfolioPatches(
       themeId,
       ...(stylePlan?.tokens ? { tokens: stylePlan.tokens } : {}),
       source: 'local',
-    };
+    });
   }
 
   // Style-only (palette / type / spacing / section polish) — no full copy rewrite.
@@ -315,7 +350,7 @@ export function planPortfolioPatches(
       'use theme',
       'feel like',
     ]);
-    return {
+    return withCodeAiJobs(blueprint, promptRaw, {
       ok: true,
       summary: stylePlan.summaries.join('. ') + '.',
       patches: stylePlan.patches,
@@ -324,7 +359,7 @@ export function planPortfolioPatches(
         : {}),
       ...(stylePlan.tokens ? { tokens: stylePlan.tokens } : {}),
       source: 'local',
-    };
+    });
   }
 
   // Explicit theme switch without "create"
@@ -338,20 +373,35 @@ export function planPortfolioPatches(
       'feel like',
     ])
   ) {
-    return {
+    return withCodeAiJobs(blueprint, promptRaw, {
       ok: true,
       summary: `Switched base to ${themePick.label}.`,
       patches: stylePlan?.patches ?? [],
       themeId: themePick.themeId,
       ...(stylePlan?.tokens ? { tokens: stylePlan.tokens } : {}),
       source: 'local',
-    };
+    });
+  }
+
+  // Code AI with theme context (e.g. "switch to coastal and create a custom footer")
+  if (wantsCodeAi(promptRaw)) {
+    const jobs = planPortfolioCodeAiJobs(blueprint, promptRaw);
+    if (jobs.length > 0) {
+      return {
+        ok: true,
+        summary: `Queued Code AI for ${jobs.length} custom component${jobs.length === 1 ? '' : 's'}.`,
+        patches: [],
+        codeAiJobs: jobs,
+        ...(themePick ? { themeId: themePick.themeId } : {}),
+        source: 'local',
+      };
+    }
   }
 
   return {
     ok: false,
     error:
-      'Could not map that prompt to a portfolio change. Try: “Create a premium wedding portfolio”, “Make the entire portfolio more premium”, “Make the palette warmer”, or “Switch to a dark studio look”.',
+      'Could not map that prompt to a portfolio change. Try: “Create a premium wedding portfolio”, “Make the entire portfolio more premium”, “Make the palette warmer”, “Add a brand-new custom section”, or “Switch to a dark studio look”.',
     source: 'local',
   };
 }
