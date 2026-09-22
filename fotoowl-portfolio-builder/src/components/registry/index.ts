@@ -3,9 +3,13 @@ import { AboutSection } from '../about';
 import type { AboutSectionProps } from '../about';
 import { getRuntimeCustomComponent } from '../custom';
 import { isCustomComponentId } from '../custom';
+import { FeatureSplit } from '../feature';
 import { FooterMinimal } from '../footer';
-import { GalleryMasonry } from '../gallery';
-import { HeroEditorial } from '../hero';
+import { GalleryGrid, GalleryMasonry } from '../gallery';
+import { HeroEditorial, HeroLayered } from '../hero';
+import { NavCentered } from '../nav';
+import { ServicesRow } from '../services';
+import { WorkCategories } from '../work';
 import type { SectionComponentId } from '../../blueprint';
 
 type AnyProps = Record<string, unknown>;
@@ -19,9 +23,15 @@ export const componentRegistry: Record<
   ComponentType<AnyProps>
 > = {
   'hero.editorial': HeroEditorial as ComponentType<AnyProps>,
+  'hero.layered': HeroLayered as ComponentType<AnyProps>,
+  'nav.centered': NavCentered as ComponentType<AnyProps>,
   'about.image_left': AboutSection as ComponentType<AnyProps>,
   'about.image_right': AboutSection as ComponentType<AnyProps>,
+  'work.categories': WorkCategories as ComponentType<AnyProps>,
+  'feature.split': FeatureSplit as ComponentType<AnyProps>,
+  'services.row': ServicesRow as ComponentType<AnyProps>,
   'gallery.masonry': GalleryMasonry as ComponentType<AnyProps>,
+  'gallery.grid': GalleryGrid as ComponentType<AnyProps>,
   'footer.minimal': FooterMinimal as ComponentType<AnyProps>,
 };
 

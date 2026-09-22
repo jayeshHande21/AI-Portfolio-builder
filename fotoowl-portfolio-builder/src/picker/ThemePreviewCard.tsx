@@ -176,6 +176,30 @@ function Documentary({ preview }: { preview: ThemePreview }) {
   );
 }
 
+function StudioMono({ preview }: { preview: ThemePreview }) {
+  return (
+    <PreviewChrome preview={preview}>
+      <div className="fo-preview-mono">
+        <p className="fo-preview-mono__nav">{preview.brand}</p>
+        <div className="fo-preview-mono__hero">
+          <p className="fo-preview-mono__mark" aria-hidden>
+            {preview.heroTitle}
+          </p>
+          {preview.heroImage ? (
+            <img src={preview.heroImage} alt="" loading="lazy" />
+          ) : null}
+        </div>
+        <div className="fo-preview-mono__band" />
+        <div className="fo-preview-grid fo-preview-grid--tight">
+          {preview.galleryImages.slice(0, 4).map((url) => (
+            <img key={url} src={url} alt="" loading="lazy" />
+          ))}
+        </div>
+      </div>
+    </PreviewChrome>
+  );
+}
+
 function PreviewBody({ preview }: { preview: ThemePreview }) {
   switch (preview.layout) {
     case 'coastal-grid':
@@ -186,6 +210,8 @@ function PreviewBody({ preview }: { preview: ThemePreview }) {
       return <MinimalType preview={preview} />;
     case 'documentary':
       return <Documentary preview={preview} />;
+    case 'studio-mono':
+      return <StudioMono preview={preview} />;
     case 'editorial-masonry':
     default:
       return <EditorialMasonry preview={preview} />;

@@ -10,14 +10,15 @@ import {
 } from '../themes';
 
 describe('theme registry', () => {
-  it('registers five starter themes', () => {
-    expect(listThemes()).toHaveLength(5);
+  it('registers six starter themes', () => {
+    expect(listThemes()).toHaveLength(6);
     expect(listThemes().map((t) => t.id)).toEqual([
       'theme-01',
       'theme-02',
       'theme-03',
       'theme-04',
       'theme-05',
+      'theme-06',
     ]);
   });
 
@@ -35,14 +36,24 @@ describe('theme registry', () => {
   it('loads themes by id', () => {
     expect(getTheme('theme-03')?.name).toBe('Dark Studio');
     expect(requireTheme('theme-05').category).toBe('editorial');
+    expect(requireTheme('theme-06').name).toBe('Studio Monochrome');
+    expect(requireTheme('theme-06').layouts).toBeUndefined();
+    expect(requireTheme('theme-06').palettes).toBeUndefined();
     expect(getDefaultTheme().id).toBe('theme-01');
+  });
+
+  it('clones theme-06 with studio paper tokens', () => {
+    const draft = createPortfolioFromTheme(requireTheme('theme-06'));
+    expect(draft.tokens?.colors.paper).toBe('#E8E8E8');
+    expect(draft.sections.some((s) => s.component === 'hero.layered')).toBe(true);
+    expect(() => validateBlueprint(draft)).not.toThrow();
   });
 
   it('reuses shared component registry ids', () => {
     for (const theme of listThemes()) {
       for (const section of theme.blueprint.sections) {
         expect(section.component).toMatch(
-          /^(hero|about|gallery|footer)\./,
+          /^(hero|nav|about|work|feature|services|gallery|footer)\./,
         );
       }
     }

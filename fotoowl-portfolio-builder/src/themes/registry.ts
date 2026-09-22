@@ -1,12 +1,13 @@
 /**
  * Theme registry — extendable catalog of starting Blueprints.
- * Five themes for now; scale toward ~30–40 later. All share Component Registry.
+ * Six themes for now; scale toward ~30–40 later. All share Component Registry.
  */
 import { theme01 } from './theme-01';
 import { theme02 } from './theme-02';
 import { theme03 } from './theme-03';
 import { theme04 } from './theme-04';
 import { theme05 } from './theme-05';
+import { theme06 } from './theme-06';
 import type { ThemeDefinition, ThemeSummary } from './types';
 
 export const DEFAULT_THEME_ID = 'theme-01';
@@ -17,6 +18,7 @@ const themesById: Record<string, ThemeDefinition> = {
   [theme03.id]: theme03,
   [theme04.id]: theme04,
   [theme05.id]: theme05,
+  [theme06.id]: theme06,
 };
 
 /** Ordered catalog for pickers. */
@@ -26,6 +28,7 @@ export const themeRegistry: ThemeDefinition[] = [
   theme03,
   theme04,
   theme05,
+  theme06,
 ];
 
 export function listThemes(): ThemeDefinition[] {

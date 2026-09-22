@@ -15,11 +15,16 @@ const FILTERS: { id: FilterId; label: string }[] = [
   { id: 'minimal', label: 'Minimal' },
 ];
 
+export interface ThemeApplyOptions {
+  layoutId?: string;
+  paletteId?: string;
+}
+
 interface ThemePickerProps {
   selectedThemeId: string | null;
   canGoBack: boolean;
   onSelect: (themeId: string) => void;
-  onApply: (themeId: string) => void;
+  onApply: (themeId: string, options?: ThemeApplyOptions) => void;
   /** Flow B — blank draft + Portfolio AI entry. */
   onBuildFromScratch?: () => void;
   onBack?: () => void;

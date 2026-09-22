@@ -46,10 +46,13 @@ import {
   undoHistory,
 } from '../history';
 import {
+  applyThemeLayout,
+  applyThemePalette,
   createBlankPortfolio,
   createPortfolioFromTheme,
   DEFAULT_THEME_ID,
   getDefaultTheme,
+  getTheme,
   requireTheme,
   type ThemeDefinition,
 } from '../../themes';
@@ -68,6 +71,10 @@ interface EditorState {
   appPhase: AppPhase;
   /** Theme highlighted in the picker (not yet applied). */
   selectedThemeId: string | null;
+  /** Active layout option for themes that expose layouts (editor header). */
+  themeLayoutId: string | null;
+  /** Active palette option for themes that expose palettes (editor header). */
+  themePaletteId: string | null;
   /** True after the user has entered the editor at least once. */
   hasEnteredEditor: boolean;
   /** Temporary editor selection (not part of Blueprint). */
@@ -98,15 +105,28 @@ interface EditorState {
   openThemePicker: () => void;
   returnToEditor: () => void;
   /** Clone theme into Blueprint and open the editor canvas. */
-  applyThemeAndEnterEditor: (themeId: string) => void;
+  applyThemeAndEnterEditor: (
+    themeId: string,
+    options?: { layoutId?: string; paletteId?: string },
+  ) => void;
   /**
    * Flow B — blank Blueprint, open editor, open Portfolio AI rail.
    * Entry point from the theme gallery (“Build from scratch”).
    */
   startFromScratchWithAi: () => void;
   /** Load a theme by registry id (clones — never mutates the theme source). */
-  loadThemeById: (themeId: string) => void;
-  loadTheme: (theme?: ThemeDefinition) => void;
+  loadThemeById: (
+    themeId: string,
+    options?: { layoutId?: string; paletteId?: string },
+  ) => void;
+  loadTheme: (
+    theme?: ThemeDefinition,
+    options?: { layoutId?: string; paletteId?: string },
+  ) => void;
+  /** Switch layout arrangement for the current theme (editor header). */
+  setThemeLayout: (layoutId: string) => void;
+  /** Switch color palette for the current theme (editor header). */
+  setThemePalette: (paletteId: string) => void;
   /** Sync from Puck onChange — records history when Blueprint changes. */
   syncFromPuck: (data: Data) => void;
   selectNode: (nodeId: string | null) => void;
@@ -146,6 +166,16 @@ interface EditorState {
   ) => void;
   moveSelectedSection: (direction: 'up' | 'down') => void;
   deleteSelectedSection: () => void;
+}
+
+function defaultThemeOptions(theme: ThemeDefinition): {
+  layoutId: string | null;
+  paletteId: string | null;
+} {
+  return {
+    layoutId: theme.layouts?.[0]?.id ?? null,
+    paletteId: theme.palettes?.[1]?.id ?? theme.palettes?.[0]?.id ?? null,
+  };
 }
 
 function loadInitialBlueprint(): PortfolioBlueprint {
@@ -201,6 +231,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   blueprint: loadInitialBlueprint(),
   appPhase: 'picker',
   selectedThemeId: DEFAULT_THEME_ID,
+  themeLayoutId: null,
+  themePaletteId: null,
   hasEnteredEditor: false,
   selectedNodeId: null,
   editorEpoch: 0,
@@ -231,8 +263,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set({ appPhase: 'editor' });
   },
 
-  applyThemeAndEnterEditor: (themeId) => {
-    get().loadTheme(requireTheme(themeId));
+  applyThemeAndEnterEditor: (themeId, options) => {
+    get().loadTheme(requireTheme(themeId), options);
     set({
       appPhase: 'editor',
       selectedThemeId: themeId,
@@ -255,17 +287,24 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       portfolioAiOpen: true,
       portfolioAiLoading: false,
       selectedThemeId: null,
+      themeLayoutId: null,
+      themePaletteId: null,
       appPhase: 'editor',
       hasEnteredEditor: true,
     });
   },
 
-  loadThemeById: (themeId) => {
-    get().loadTheme(requireTheme(themeId));
+  loadThemeById: (themeId, options) => {
+    get().loadTheme(requireTheme(themeId), options);
   },
 
-  loadTheme: (theme = getDefaultTheme()) => {
-    const draft = validateBlueprint(createPortfolioFromTheme(theme));
+  loadTheme: (theme = getDefaultTheme(), options) => {
+    const defaults = defaultThemeOptions(theme);
+    const layoutId = options?.layoutId ?? defaults.layoutId ?? undefined;
+    const paletteId = options?.paletteId ?? defaults.paletteId ?? undefined;
+    const draft = validateBlueprint(
+      createPortfolioFromTheme(theme, { layoutId, paletteId }),
+    );
     clearRuntimeCustomComponents();
     withSyncLock(set);
     set({
@@ -279,7 +318,39 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       portfolioAiOpen: false,
       portfolioAiLoading: false,
       selectedThemeId: theme.id,
+      themeLayoutId: layoutId ?? null,
+      themePaletteId: paletteId ?? null,
     });
+  },
+
+  setThemeLayout: (layoutId) => {
+    const before = get().blueprint;
+    const theme = before.themeId ? getTheme(before.themeId) : undefined;
+    if (!theme?.layouts?.length) return;
+    const after = validateBlueprint(applyThemeLayout(before, theme, layoutId));
+    commitBlueprintChange(set, get, {
+      before,
+      after,
+      label: 'Theme layout',
+      remount: true,
+    });
+    set({ themeLayoutId: layoutId });
+  },
+
+  setThemePalette: (paletteId) => {
+    const before = get().blueprint;
+    const theme = before.themeId ? getTheme(before.themeId) : undefined;
+    if (!theme?.palettes?.length) return;
+    const after = validateBlueprint(
+      applyThemePalette(before, theme, paletteId),
+    );
+    commitBlueprintChange(set, get, {
+      before,
+      after,
+      label: 'Theme palette',
+      remount: true,
+    });
+    set({ themePaletteId: paletteId });
   },
 
   syncFromPuck: (data) => {
@@ -502,12 +573,20 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       }
 
       let next: PortfolioBlueprint = before;
+      let nextLayoutId = get().themeLayoutId;
+      let nextPaletteId = get().themePaletteId;
       if (result.themeId) {
         const theme = requireTheme(result.themeId);
+        const defaults = defaultThemeOptions(theme);
         next = validateBlueprint({
-          ...createPortfolioFromTheme(theme),
+          ...createPortfolioFromTheme(theme, {
+            layoutId: defaults.layoutId ?? undefined,
+            paletteId: defaults.paletteId ?? undefined,
+          }),
           id: before.id,
         });
+        nextLayoutId = defaults.layoutId;
+        nextPaletteId = defaults.paletteId;
         clearRuntimeCustomComponents();
       }
 
@@ -571,6 +650,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         portfolioAiLoading: false,
         portfolioAiOpen: true,
         selectedThemeId: next.themeId ?? get().selectedThemeId,
+        themeLayoutId: nextLayoutId,
+        themePaletteId: nextPaletteId,
       });
       return { ok: true, summary: result.summary };
     } catch (error) {

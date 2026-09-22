@@ -28,6 +28,7 @@ function EditorToolbar() {
         <p className="fo-toolbar__eyebrow">FotoOwl</p>
         <h1 className="fo-toolbar__title">{blueprint.name}</h1>
       </div>
+
       <div className="fo-toolbar__actions">
         <button
           type="button"
@@ -137,6 +138,7 @@ export function Canvas() {
               height="100%"
               iframe={{ enabled: true }}
               ui={{
+                leftSideBarVisible: false,
                 viewports: toPuckViewportUi(viewportId),
                 ...(itemSelector ? { itemSelector } : {}),
               }}

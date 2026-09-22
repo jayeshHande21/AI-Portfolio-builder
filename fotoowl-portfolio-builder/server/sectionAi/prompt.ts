@@ -23,9 +23,15 @@ or
 4. Every patch targetId / replace node id MUST equal the given sectionId.
 5. Allowed component ids:
    - hero.editorial
+   - hero.layered
+   - nav.centered
    - about.image_left
    - about.image_right
+   - work.categories
+   - feature.split
+   - services.row
    - gallery.masonry
+   - gallery.grid
    - footer.minimal
 6. Prefer "update" for small changes (copy, CTA, layout, styles).
 7. Use "replace" only when rebuilding the whole section structure.

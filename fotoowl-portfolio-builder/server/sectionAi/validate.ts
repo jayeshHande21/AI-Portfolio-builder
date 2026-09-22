@@ -66,9 +66,15 @@ function assertSectionScoped(
     patch.node.component &&
     ![
       'hero.editorial',
+      'hero.layered',
+      'nav.centered',
       'about.image_left',
       'about.image_right',
+      'work.categories',
+      'feature.split',
+      'services.row',
       'gallery.masonry',
+      'gallery.grid',
       'footer.minimal',
     ].includes(patch.node.component)
   ) {
@@ -79,9 +85,15 @@ function assertSectionScoped(
     patch.changes.component &&
     ![
       'hero.editorial',
+      'hero.layered',
+      'nav.centered',
       'about.image_left',
       'about.image_right',
+      'work.categories',
+      'feature.split',
+      'services.row',
       'gallery.masonry',
+      'gallery.grid',
       'footer.minimal',
     ].includes(patch.changes.component)
   ) {

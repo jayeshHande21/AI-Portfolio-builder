@@ -38,13 +38,21 @@ or
    - theme-03 Dark Studio
    - theme-04 Minimal Brand
    - theme-05 Documentary Travel
+   - theme-06 Studio Monochrome
 5. When themeId is set, the client clones that theme FIRST, then applies tokens, then patches.
-   Use canonical section ids from themes: hero_01, about_01, gallery_01, footer_01.
+   Use canonical section ids from themes: hero_01, about_01, gallery_01, footer_01
+   (theme-06 uses nav_06, hero_06, categories_06, feature_06, services_06, gallery_06, footer_06).
 6. Allowed component ids:
    - hero.editorial
+   - hero.layered
+   - nav.centered
    - about.image_left
    - about.image_right
+   - work.categories
+   - feature.split
+   - services.row
    - gallery.masonry
+   - gallery.grid
    - footer.minimal
 7. Prefer update patches for copy/tone/styles. Use replace only when rebuilding a section.
    For "create a … portfolio", prefer themeId alone (or themeId + a few update patches). Do not invent new section ids.

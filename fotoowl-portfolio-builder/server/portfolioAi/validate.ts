@@ -12,9 +12,15 @@ import {
 
 const ALLOWED_COMPONENTS = [
   'hero.editorial',
+  'hero.layered',
+  'nav.centered',
   'about.image_left',
   'about.image_right',
+  'work.categories',
+  'feature.split',
+  'services.row',
   'gallery.masonry',
+  'gallery.grid',
   'footer.minimal',
 ] as const;
 
@@ -24,6 +30,7 @@ const ALLOWED_THEMES = [
   'theme-03',
   'theme-04',
   'theme-05',
+  'theme-06',
 ] as const;
 
 const llmSuccessSchema = z.object({

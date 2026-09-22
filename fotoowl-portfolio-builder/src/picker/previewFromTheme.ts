@@ -7,7 +7,8 @@ export type PreviewLayout =
   | 'coastal-grid'
   | 'studio-dark'
   | 'minimal-type'
-  | 'documentary';
+  | 'documentary'
+  | 'studio-mono';
 
 export interface ThemePreview {
   id: string;
@@ -30,6 +31,7 @@ const LAYOUT_BY_THEME: Record<string, PreviewLayout> = {
   'theme-03': 'studio-dark',
   'theme-04': 'minimal-type',
   'theme-05': 'documentary',
+  'theme-06': 'studio-mono',
 };
 
 function asString(value: unknown, fallback = ''): string {
@@ -70,8 +72,11 @@ export function listThemePreviews(): ThemePreview[] {
       category: theme.category,
       layout: LAYOUT_BY_THEME[theme.id] ?? 'editorial-masonry',
       tokens: theme.tokens,
-      heroTitle: asString(heroProps.title, theme.name),
-      heroSubtitle: asString(heroProps.subtitle),
+      heroTitle: asString(
+        heroProps.title ?? heroProps.brandMark,
+        theme.name,
+      ),
+      heroSubtitle: asString(heroProps.subtitle ?? heroProps.eyebrow),
       heroEyebrow: asString(heroProps.eyebrow),
       heroImage: asString(heroProps.imageUrl),
       galleryImages: galleryUrls(gallery?.props),

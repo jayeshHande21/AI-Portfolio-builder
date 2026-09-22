@@ -122,8 +122,14 @@ export interface CustomComponentDefinition {
 /** Stable section component ids used in V1 registry (+ V2 custom.*). */
 export type SectionComponentId =
   | 'hero.editorial'
+  | 'hero.layered'
+  | 'nav.centered'
   | 'about.image_left'
   | 'about.image_right'
+  | 'work.categories'
+  | 'feature.split'
+  | 'services.row'
   | 'gallery.masonry'
+  | 'gallery.grid'
   | 'footer.minimal'
   | `custom.${string}`;

@@ -21,24 +21,42 @@ import { FO_STYLES_PROP } from './styleProp';
 /** Puck component type names (editor-only). */
 export type PuckSectionType =
   | 'HeroEditorial'
+  | 'HeroLayered'
+  | 'NavCentered'
   | 'About'
+  | 'WorkCategories'
+  | 'FeatureSplit'
+  | 'ServicesRow'
   | 'GalleryMasonry'
+  | 'GalleryGrid'
   | 'FooterMinimal'
   | 'CustomSection';
 
 const COMPONENT_TO_PUCK: Record<string, PuckSectionType> = {
   'hero.editorial': 'HeroEditorial',
+  'hero.layered': 'HeroLayered',
+  'nav.centered': 'NavCentered',
   'about.image_left': 'About',
   'about.image_right': 'About',
+  'work.categories': 'WorkCategories',
+  'feature.split': 'FeatureSplit',
+  'services.row': 'ServicesRow',
   'gallery.masonry': 'GalleryMasonry',
+  'gallery.grid': 'GalleryGrid',
   'footer.minimal': 'FooterMinimal',
 };
 
 const PUCK_TO_COMPONENT: Record<Exclude<PuckSectionType, 'CustomSection'>, string> =
   {
     HeroEditorial: 'hero.editorial',
+    HeroLayered: 'hero.layered',
+    NavCentered: 'nav.centered',
     About: 'about.image_left', // refined by layout prop
+    WorkCategories: 'work.categories',
+    FeatureSplit: 'feature.split',
+    ServicesRow: 'services.row',
     GalleryMasonry: 'gallery.masonry',
+    GalleryGrid: 'gallery.grid',
     FooterMinimal: 'footer.minimal',
   };
 
