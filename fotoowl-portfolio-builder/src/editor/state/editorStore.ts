@@ -500,6 +500,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         clearRuntimeCustomComponents();
       }
 
+      if (result.tokens) {
+        next = validateBlueprint({
+          ...next,
+          tokens: result.tokens,
+        });
+      }
+
       if (result.patches.length > 0) {
         const applied = applyPatches(next, result.patches);
         if (!applied.ok) {

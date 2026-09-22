@@ -23,3 +23,9 @@ export type {
 } from './codeApi';
 export { planSectionPatches } from './section';
 export { planPortfolioPatches, pickThemeFromPrompt } from './portfolio';
+export {
+  isStyleIntent,
+  mergeDesignTokens,
+  planStyleChanges,
+} from './style';
+export type { StylePlan } from './style';

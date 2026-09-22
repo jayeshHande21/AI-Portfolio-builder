@@ -3,6 +3,7 @@
  * Independent of Puck and of any specific model vendor.
  */
 import type { BlueprintNode, BlueprintPatch, PortfolioBlueprint } from '../blueprint';
+import type { DesignTokens } from '../blueprint';
 
 export type AiScope = 'section' | 'portfolio';
 
@@ -58,6 +59,11 @@ export interface PortfolioAiResponse {
    * Section IDs in patches must match the chosen theme (hero_01, …).
    */
   themeId?: string;
+  /**
+   * Style AI — full design tokens to apply after theme clone (if any),
+   * before patches. Replaces Blueprint.tokens.
+   */
+  tokens?: DesignTokens;
   source: 'local' | 'remote';
 }
 

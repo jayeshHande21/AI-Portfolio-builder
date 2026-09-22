@@ -1,10 +1,12 @@
 /**
- * Local Portfolio AI planner — prompt → theme pick + structured Blueprint patches.
+ * Local Portfolio AI planner — Orchestrator slice:
+ * theme pick + Style AI + structured Blueprint patches.
  *
- * Phase 9 first slice: works without LLM keys. Remote orchestrator preferred when configured.
+ * Phase 9: works without LLM keys. Remote orchestrator preferred when configured.
  */
 import type { BlueprintNode, BlueprintPatch, PortfolioBlueprint } from '../../blueprint';
 import { updateNodePatch } from '../../blueprint';
+import { isStyleIntent, planStyleChanges } from '../style';
 import type { PortfolioAiResult } from '../types';
 
 function includesAny(haystack: string, needles: string[]): boolean {
@@ -177,8 +179,33 @@ function premiumPatchesForSections(
   return { patches, summaries };
 }
 
+function canonicalStubSections(): BlueprintNode[] {
+  return [
+    { id: 'hero_01', type: 'section', component: 'hero.editorial', props: {} },
+    {
+      id: 'about_01',
+      type: 'section',
+      component: 'about.image_left',
+      props: {},
+    },
+    {
+      id: 'gallery_01',
+      type: 'section',
+      component: 'gallery.masonry',
+      props: {},
+    },
+    {
+      id: 'footer_01',
+      type: 'section',
+      component: 'footer.minimal',
+      props: {},
+    },
+  ];
+}
+
 /**
  * Plan portfolio-scoped changes from a natural-language prompt.
+ * Orchestrates theme pick + Style AI + copy patches.
  */
 export function planPortfolioPatches(
   blueprint: PortfolioBlueprint,
@@ -192,8 +219,9 @@ export function planPortfolioPatches(
   const create = wantsCreate(prompt);
   const premium = wantsPremium(prompt);
   const themePick = pickThemeFromPrompt(prompt);
+  const stylePlan = planStyleChanges(blueprint, promptRaw);
 
-  // Create / rebuild → switch theme (or default editorial) + optional premium pass.
+  // Create / rebuild → switch theme (or default editorial) + optional premium / style.
   if (create) {
     const pick = themePick ?? {
       themeId: 'theme-01',
@@ -202,31 +230,8 @@ export function planPortfolioPatches(
     const summaries = [`Switched base to ${pick.label}`];
     let patches: BlueprintPatch[] = [];
 
-    // Premium copy is applied after the client clones the theme (same section ids).
     if (premium || !themePick) {
-      // Patches target canonical theme section ids; applied after theme clone.
-      const stubSections: BlueprintNode[] = [
-        { id: 'hero_01', type: 'section', component: 'hero.editorial', props: {} },
-        {
-          id: 'about_01',
-          type: 'section',
-          component: 'about.image_left',
-          props: {},
-        },
-        {
-          id: 'gallery_01',
-          type: 'section',
-          component: 'gallery.masonry',
-          props: {},
-        },
-        {
-          id: 'footer_01',
-          type: 'section',
-          component: 'footer.minimal',
-          props: {},
-        },
-      ];
-      const premiumed = premiumPatchesForSections(stubSections);
+      const premiumed = premiumPatchesForSections(canonicalStubSections());
       patches = premiumed.patches;
       if (premium) {
         summaries.push('Applied premium tone across sections');
@@ -235,19 +240,41 @@ export function planPortfolioPatches(
       }
     }
 
+    // Style AI against stub sections after theme clone (same ids).
+    const styleOnStubs = planStyleChanges(
+      {
+        ...blueprint,
+        sections: canonicalStubSections(),
+        themeId: pick.themeId,
+      },
+      promptRaw,
+    );
+    if (styleOnStubs) {
+      patches = [...patches, ...styleOnStubs.patches];
+      summaries.push(...styleOnStubs.summaries);
+    }
+
     return {
       ok: true,
       summary: summaries.join('. ') + '.',
       patches,
       themeId: pick.themeId,
+      ...(styleOnStubs?.tokens ? { tokens: styleOnStubs.tokens } : {}),
       source: 'local',
     };
   }
 
-  // Restyle current portfolio (no theme switch unless explicitly matched + "switch").
+  // Restyle current portfolio (copy + Style AI).
   if (premium) {
-    const { patches, summaries } = premiumPatchesForSections(blueprint.sections);
-    if (patches.length === 0) {
+    const { patches: copyPatches, summaries } = premiumPatchesForSections(
+      blueprint.sections,
+    );
+    const patches = [...copyPatches, ...(stylePlan?.patches ?? [])];
+    if (stylePlan) {
+      summaries.push(...stylePlan.summaries);
+    }
+
+    if (patches.length === 0 && !stylePlan?.tokens) {
       return {
         ok: false,
         error:
@@ -275,6 +302,27 @@ export function planPortfolioPatches(
         '.',
       patches,
       themeId,
+      ...(stylePlan?.tokens ? { tokens: stylePlan.tokens } : {}),
+      source: 'local',
+    };
+  }
+
+  // Style-only (palette / type / spacing / section polish) — no full copy rewrite.
+  if (stylePlan && isStyleIntent(promptRaw)) {
+    const wantsThemeSwitch = includesAny(prompt, [
+      'switch',
+      'change to',
+      'use theme',
+      'feel like',
+    ]);
+    return {
+      ok: true,
+      summary: stylePlan.summaries.join('. ') + '.',
+      patches: stylePlan.patches,
+      ...(wantsThemeSwitch && themePick
+        ? { themeId: themePick.themeId }
+        : {}),
+      ...(stylePlan.tokens ? { tokens: stylePlan.tokens } : {}),
       source: 'local',
     };
   }
@@ -293,8 +341,9 @@ export function planPortfolioPatches(
     return {
       ok: true,
       summary: `Switched base to ${themePick.label}.`,
-      patches: [],
+      patches: stylePlan?.patches ?? [],
       themeId: themePick.themeId,
+      ...(stylePlan?.tokens ? { tokens: stylePlan.tokens } : {}),
       source: 'local',
     };
   }
@@ -302,7 +351,7 @@ export function planPortfolioPatches(
   return {
     ok: false,
     error:
-      'Could not map that prompt to a portfolio change. Try: “Create a premium wedding portfolio”, “Make the entire portfolio more premium”, or “Switch to a dark studio look”.',
+      'Could not map that prompt to a portfolio change. Try: “Create a premium wedding portfolio”, “Make the entire portfolio more premium”, “Make the palette warmer”, or “Switch to a dark studio look”.',
     source: 'local',
   };
 }

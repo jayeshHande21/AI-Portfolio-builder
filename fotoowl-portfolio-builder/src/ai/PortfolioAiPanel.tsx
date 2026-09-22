@@ -12,8 +12,11 @@ const SUGGESTIONS = [
   'Create a premium wedding photography portfolio',
   'Build a dark studio fashion portfolio',
   'Make the entire portfolio more premium',
+  'Make the palette warmer',
+  'Use a cooler coastal palette',
+  'Add more spacing and polish the look',
+  'Switch to editorial serif typography',
   'Switch to a coastal portrait look',
-  'Create a documentary travel portfolio',
 ];
 
 /**
@@ -31,7 +34,7 @@ export function PortfolioAiPanel() {
     {
       id: 'sys',
       role: 'system',
-      text: 'Describe the whole portfolio you want. Portfolio AI can switch themes and restyle every section. For one section only, use Section AI from the canvas action bar.',
+      text: 'Describe the whole portfolio you want. Portfolio AI can switch themes, restyle copy, and apply Style AI (palette, type, spacing). For one section only, use Section AI from the canvas action bar.',
     },
   ]);
 

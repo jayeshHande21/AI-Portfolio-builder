@@ -81,6 +81,15 @@ describe('Portfolio AI planner', () => {
     expect(result.themeId).toBe('theme-03');
   });
 
+  it('applies Style AI warmer palette without theme switch', () => {
+    const bp = sample();
+    const result = planPortfolioPatches(bp, 'Make the palette warmer');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.themeId).toBeUndefined();
+    expect(result.tokens?.colors.accent).toBe('#8a5a2b');
+  });
+
   it('rejects empty / unmapped prompts', () => {
     const bp = sample();
     expect(planPortfolioPatches(bp, '   ').ok).toBe(false);

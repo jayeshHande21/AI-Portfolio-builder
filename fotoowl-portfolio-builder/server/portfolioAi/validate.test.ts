@@ -20,6 +20,33 @@ describe('Portfolio AI validate', () => {
     expect(result.patches).toEqual([]);
   });
 
+  it('accepts tokens-only style responses', () => {
+    const result = parseAndValidatePortfolioAiResponse(
+      JSON.stringify({
+        ok: true,
+        summary: 'Warmed the palette',
+        patches: [],
+        tokens: {
+          colors: {
+            ink: '#1a1410',
+            paper: '#f2ebe3',
+            accent: '#8a5a2b',
+            muted: '#6e6258',
+          },
+          typography: {
+            display: '"Syne", sans-serif',
+            body: '"Source Sans 3", sans-serif',
+          },
+          spacing: { sectionY: '3rem' },
+          radius: '0.35rem',
+        },
+      }),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.tokens?.colors.accent).toBe('#8a5a2b');
+  });
+
   it('rejects unsupported components', () => {
     const result = parseAndValidatePortfolioAiResponse(
       JSON.stringify({

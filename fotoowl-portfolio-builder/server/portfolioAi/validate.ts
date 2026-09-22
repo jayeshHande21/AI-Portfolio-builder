@@ -3,6 +3,7 @@
  */
 import { z } from 'zod';
 import { blueprintPatchSchema } from '../../src/blueprint/patchSchema';
+import { designTokensSchema } from '../../src/blueprint/schema';
 
 const ALLOWED_COMPONENTS = [
   'hero.editorial',
@@ -25,6 +26,7 @@ const llmSuccessSchema = z.object({
   summary: z.string().min(1),
   patches: z.array(z.unknown()).default([]),
   themeId: z.string().optional(),
+  tokens: designTokensSchema.optional(),
 });
 
 const llmErrorSchema = z.object({
@@ -39,6 +41,7 @@ export type ValidatedPortfolioAiSuccess = {
   summary: string;
   patches: z.infer<typeof blueprintPatchSchema>[];
   themeId?: string;
+  tokens?: z.infer<typeof designTokensSchema>;
   source: 'remote';
 };
 
@@ -148,10 +151,12 @@ export function parseAndValidatePortfolioAiResponse(
     patches.push(patch.data);
   }
 
-  if (!themeId && patches.length === 0) {
+  const tokens = shape.data.tokens;
+
+  if (!themeId && patches.length === 0 && !tokens) {
     return {
       ok: false,
-      error: 'Portfolio AI returned neither themeId nor patches',
+      error: 'Portfolio AI returned neither themeId, tokens, nor patches',
       source: 'remote',
     };
   }
@@ -161,6 +166,7 @@ export function parseAndValidatePortfolioAiResponse(
     summary: shape.data.summary,
     patches,
     ...(themeId ? { themeId } : {}),
+    ...(tokens ? { tokens } : {}),
     source: 'remote',
   };
 }
